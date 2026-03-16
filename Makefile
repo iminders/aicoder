@@ -28,13 +28,17 @@ cross:
 	@echo "Cross-compiled binaries:"
 	@ls -lh dist/
 
-## test: Run all tests with race detector
+## test: Run all tests with coverage
 test:
+	go test -cover ./...
+
+## test-race: Run tests with race detector
+test-race:
 	go test -race -cover ./...
 
 ## test-verbose: Run tests with verbose output
 test-verbose:
-	go test -race -v -cover ./...
+	go test -v -cover ./...
 
 ## bench: Run benchmarks
 bench:
