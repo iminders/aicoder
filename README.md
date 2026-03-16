@@ -48,6 +48,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 
 # 或使用 OpenAI
 export OPENAI_API_KEY="sk-..."
+
 ```
 
 ### 使用
@@ -171,6 +172,28 @@ $ aicoder
 {
   "provider": "anthropic",
   "model": "claude-sonnet-4-5",
+  "maxTokens": 8192,
+  "autoApprove": false,
+  "autoApproveReads": true,
+  "autoApproveCommands": ["go test", "npm test", "git status"],
+  "forbiddenCommands": ["rm -rf /", "mkfs", "dd if="],
+  "backupOnWrite": true,
+  "theme": "dark",
+  "language": "zh-CN",
+  "proxy": ""
+}
+```
+
+本地部署DeepSeek R1配置
+
+`export OPENAI_API_KEY=local`
+
+`~/.aicoder/config.json`
+```json
+{
+  "provider": "openai",
+  "model": "DeepSeek-R1",
+  "baseUrl": "http://127.0.0.1:10002",
   "maxTokens": 8192,
   "autoApprove": false,
   "autoApproveReads": true,
