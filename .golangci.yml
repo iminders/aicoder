@@ -1,3 +1,5 @@
+version: 2
+
 linters-settings:
   govet:
     check-shadowing: true
@@ -29,28 +31,19 @@ linters:
     - dogsled
     - dupl
     - errcheck
-    - exportloopref
     - gochecknoinits
     - goconst
     - gocritic
     - gocyclo
-    - gofmt
-    - goimports
     - goprintffuncname
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - lll
     - misspell
     - nakedret
     - staticcheck
-    - stylecheck
-    - typecheck
-    - unconvert
-    - unparam
     - unused
-    - whitespace
 
 issues:
   exclude-rules:
