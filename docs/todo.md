@@ -13,7 +13,7 @@
 
 ### 环境搭建
 
-- [ ] 初始化 Go 模块：`go mod init github.com/yourorg/aicoder`
+- [ ] 初始化 Go 模块：`go mod init github.com/iminders/aicoder`
 - [ ] 配置 `.golangci.yml` 代码检查规则
 - [ ] 配置 `Makefile`（build / test / lint / release 目标）
 - [ ] 搭建 GitHub Actions CI 流水线（lint + test + 多平台 build 矩阵）
@@ -238,7 +238,7 @@
 - [ ] 设置 GitHub Release 自动触发（tag push）
 - [ ] 编写 `install.sh` 安装脚本（检测平台，下载对应二进制）
 - [ ] 发布 Homebrew Tap：`homebrew-tap` 仓库，自动更新 formula
-- [ ] 发布 npm 包（`@yourorg/aicoder`）：postinstall 脚本下载对应平台二进制
+- [ ] 发布 npm 包（`@iminders/aicoder`）：postinstall 脚本下载对应平台二进制
 - [ ] 完善 `README.md`：安装说明 / 快速上手 / 配置参考 / GIF 演示
 
 **验收标准：** 三种安装方式（brew / npm / install.sh）均可成功安装并运行。

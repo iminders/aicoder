@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourorg/aicoder/internal/llm"
-	"github.com/yourorg/aicoder/internal/logger"
-	"github.com/yourorg/aicoder/internal/session"
+	"github.com/iminders/aicoder/internal/llm"
+	"github.com/iminders/aicoder/internal/logger"
+	"github.com/iminders/aicoder/internal/session"
 )
 
 const defaultBaseURL = "https://api.anthropic.com"

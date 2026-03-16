@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourorg/aicoder/internal/config"
-	aicontext "github.com/yourorg/aicoder/internal/context"
-	"github.com/yourorg/aicoder/internal/llm"
-	"github.com/yourorg/aicoder/internal/logger"
-	"github.com/yourorg/aicoder/internal/session"
-	"github.com/yourorg/aicoder/internal/tools"
-	"github.com/yourorg/aicoder/internal/ui"
+	"github.com/iminders/aicoder/internal/config"
+	aicontext "github.com/iminders/aicoder/internal/context"
+	"github.com/iminders/aicoder/internal/llm"
+	"github.com/iminders/aicoder/internal/logger"
+	"github.com/iminders/aicoder/internal/session"
+	"github.com/iminders/aicoder/internal/tools"
+	"github.com/iminders/aicoder/internal/ui"
 )
 
 // Agent orchestrates the full LLM ↔ tool loop.

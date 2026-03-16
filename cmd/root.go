@@ -10,20 +10,20 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/yourorg/aicoder/internal/agent"
-	"github.com/yourorg/aicoder/internal/config"
-	"github.com/yourorg/aicoder/internal/logger"
-	"github.com/yourorg/aicoder/internal/llm"
-	anthropicprovider "github.com/yourorg/aicoder/internal/llm/anthropic"
-	openaiprovider "github.com/yourorg/aicoder/internal/llm/openai"
-	"github.com/yourorg/aicoder/internal/slash"
-	"github.com/yourorg/aicoder/internal/ui"
-	"github.com/yourorg/aicoder/pkg/version"
+	"github.com/iminders/aicoder/internal/agent"
+	"github.com/iminders/aicoder/internal/config"
+	"github.com/iminders/aicoder/internal/logger"
+	"github.com/iminders/aicoder/internal/llm"
+	anthropicprovider "github.com/iminders/aicoder/internal/llm/anthropic"
+	openaiprovider "github.com/iminders/aicoder/internal/llm/openai"
+	"github.com/iminders/aicoder/internal/slash"
+	"github.com/iminders/aicoder/internal/ui"
+	"github.com/iminders/aicoder/pkg/version"
 
 	// Register tools
-	_ "github.com/yourorg/aicoder/internal/tools/filesystem"
-	_ "github.com/yourorg/aicoder/internal/tools/search"
-	_ "github.com/yourorg/aicoder/internal/tools/shell"
+	_ "github.com/iminders/aicoder/internal/tools/filesystem"
+	_ "github.com/iminders/aicoder/internal/tools/search"
+	_ "github.com/iminders/aicoder/internal/tools/shell"
 )
 
 // flags holds CLI flag values.

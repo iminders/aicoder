@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourorg/aicoder/internal/config"
-	"github.com/yourorg/aicoder/internal/session"
-	"github.com/yourorg/aicoder/internal/ui"
-	"github.com/yourorg/aicoder/pkg/diff"
-	"github.com/yourorg/aicoder/pkg/version"
+	"github.com/iminders/aicoder/internal/config"
+	"github.com/iminders/aicoder/internal/session"
+	"github.com/iminders/aicoder/internal/ui"
+	"github.com/iminders/aicoder/pkg/diff"
+	"github.com/iminders/aicoder/pkg/version"
 )
 
 // Handler processes a slash command string. Returns true if the program should exit.

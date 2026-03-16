@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/yourorg/aicoder/internal/config"
-	"github.com/yourorg/aicoder/internal/tools"
+	"github.com/iminders/aicoder/internal/config"
+	"github.com/iminders/aicoder/internal/tools"
 )
 
 // mockTool is a test double for tools.Tool.

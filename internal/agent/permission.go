@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yourorg/aicoder/internal/config"
-	"github.com/yourorg/aicoder/internal/tools"
+	"github.com/iminders/aicoder/internal/config"
+	"github.com/iminders/aicoder/internal/tools"
 )
 
 // PermAction is the outcome of a permission check.

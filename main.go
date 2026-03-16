@@ -1,6 +1,6 @@
 package main
 
-import "github.com/yourorg/aicoder/cmd"
+import "github.com/iminders/aicoder/cmd"
 
 func main() {
 	cmd.Execute()

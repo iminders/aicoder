@@ -34,7 +34,7 @@
 
 ```bash
 # 从源码编译（需要 Go 1.22+）
-git clone https://github.com/yourorg/aicoder
+git clone https://github.com/iminders/aicoder
 cd aicoder
 make build
 mv aicoder /usr/local/bin/

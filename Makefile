@@ -1,4 +1,4 @@
-MODULE  := github.com/yourorg/aicoder
+MODULE  := github.com/iminders/aicoder
 BINARY  := aicoder
 VERSION ?= 1.0.0
 COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")

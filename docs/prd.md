@@ -359,13 +359,13 @@ aicoder/
 brew install aicoder
 
 # npm（跨平台）
-npm install -g @yourorg/aicoder
+npm install -g @iminders/aicoder
 
 # 直接下载二进制
 curl -fsSL https://aicoder.dev/install.sh | sh
 
 # Go 源码编译
-go install github.com/yourorg/aicoder@latest
+go install github.com/iminders/aicoder@latest
 ```
 
 ---

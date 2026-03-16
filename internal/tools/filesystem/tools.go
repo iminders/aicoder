@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourorg/aicoder/internal/tools"
-	"github.com/yourorg/aicoder/pkg/diff"
+	"github.com/iminders/aicoder/internal/tools"
+	"github.com/iminders/aicoder/pkg/diff"
 )
 
 // sandboxDenied are path prefixes that are always forbidden.

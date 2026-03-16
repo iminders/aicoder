@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/yourorg/aicoder/internal/tools"
+	"github.com/iminders/aicoder/internal/tools"
 )
 
 type GrepSearchTool struct{}

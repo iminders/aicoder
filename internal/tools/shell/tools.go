@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourorg/aicoder/internal/tools"
+	"github.com/iminders/aicoder/internal/tools"
 )
 
 // ForbiddenPatterns holds command substrings that are always blocked.

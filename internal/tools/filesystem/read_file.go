@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/yourorg/aicoder/internal/tools"
+	"github.com/iminders/aicoder/internal/tools"
 )
 
 type ReadFileTool struct{}
