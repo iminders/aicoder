@@ -10,10 +10,11 @@ import (
 
 // ProjectContext holds auto-discovered project information.
 type ProjectContext struct {
-	RootDir     string
-	AICoderMD   string // contents of AICODER.md if found
-	GitInfo     string
-	ProjectInfo string
+	RootDir         string
+	AICoderMD       string // contents of AICODER.md if found
+	GitInfo         string
+	ProjectInfo     string
+	DirectoryTree   string // directory structure summary
 }
 
 // Collect gathers project context starting from the given directory.
@@ -22,6 +23,7 @@ func Collect(startDir string) *ProjectContext {
 	ctx.AICoderMD = findAICoderMD(startDir)
 	ctx.GitInfo = collectGit(startDir)
 	ctx.ProjectInfo = detectProject(startDir)
+	ctx.DirectoryTree = SummarizeDirectoryCompact(startDir)
 	return ctx
 }
 
@@ -39,6 +41,9 @@ func (c *ProjectContext) SystemPrompt() string {
 	}
 	if c.ProjectInfo != "" {
 		parts = append(parts, "\n## 项目环境\n"+c.ProjectInfo)
+	}
+	if c.DirectoryTree != "" {
+		parts = append(parts, "\n## "+c.DirectoryTree)
 	}
 	if c.GitInfo != "" {
 		parts = append(parts, "\n## Git 状态\n"+c.GitInfo)
