@@ -61,22 +61,18 @@ func DefaultTheme() *Theme {
 
 	t.ErrorStyle = lipgloss.NewStyle().
 		Foreground(t.Error).
-		Bold(true).
-		Prefix("✗ ")
+		Bold(true)
 
 	t.SuccessStyle = lipgloss.NewStyle().
 		Foreground(t.Success).
-		Bold(true).
-		Prefix("✓ ")
+		Bold(true)
 
 	t.WarningStyle = lipgloss.NewStyle().
 		Foreground(t.Warning).
-		Bold(true).
-		Prefix("⚠ ")
+		Bold(true)
 
 	t.InfoStyle = lipgloss.NewStyle().
-		Foreground(t.Info).
-		Prefix("ℹ ")
+		Foreground(t.Info)
 
 	t.PromptStyle = lipgloss.NewStyle().
 		Foreground(t.Primary).

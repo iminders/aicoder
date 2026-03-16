@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // InputModel represents a text input component.
@@ -127,7 +128,7 @@ func (i *InputModel) View() string {
 
 		b.WriteString(before)
 		if i.focused {
-			b.WriteString(theme.Highlight.Render("_"))
+			b.WriteString(lipgloss.NewStyle().Foreground(theme.Highlight).Render("_"))
 		}
 		b.WriteString(after)
 	}

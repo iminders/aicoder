@@ -23,8 +23,13 @@ func NewConfirm(message string) *ConfirmModel {
 	}
 }
 
+// Init initializes the model (required by tea.Model interface).
+func (c *ConfirmModel) Init() tea.Cmd {
+	return nil
+}
+
 // Update handles confirmation events.
-func (c *ConfirmModel) Update(msg tea.Msg) (*ConfirmModel, tea.Cmd) {
+func (c *ConfirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if c.done {
 		return c, nil
 	}

@@ -193,7 +193,7 @@ func (m *Model) View() string {
 		b.WriteString("\n")
 		b.WriteString(m.theme.PromptStyle.Render("> "))
 		b.WriteString(m.inputBuffer)
-		b.WriteString(m.theme.Muted.Render("_"))
+		b.WriteString(lipgloss.NewStyle().Foreground(m.theme.Muted).Render("_"))
 	}
 
 	return b.String()
