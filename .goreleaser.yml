@@ -1,7 +1,7 @@
 # GoReleaser configuration for aicoder
 # https://goreleaser.com
 
-version: 2
+# version: 2
 
 before:
   hooks:
