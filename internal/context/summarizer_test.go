@@ -13,15 +13,15 @@ func TestSummarizeDirectory(t *testing.T) {
 
 	// 创建测试文件和目录
 	testStructure := map[string]string{
-		"README.md":           "# Test Project",
-		"main.go":             "package main",
-		"go.mod":              "module test",
-		"src/app.go":          "package src",
-		"src/utils.go":        "package src",
-		"tests/app_test.go":   "package tests",
-		"docs/guide.md":       "# Guide",
+		"README.md":          "# Test Project",
+		"main.go":            "package main",
+		"go.mod":             "module test",
+		"src/app.go":         "package src",
+		"src/utils.go":       "package src",
+		"tests/app_test.go":  "package tests",
+		"docs/guide.md":      "# Guide",
 		"node_modules/pkg/a": "should be ignored",
-		".git/config":         "should be ignored",
+		".git/config":        "should be ignored",
 	}
 
 	for path, content := range testStructure {
@@ -196,57 +196,57 @@ func TestShouldIgnore(t *testing.T) {
 	config := DefaultSummarizerConfig()
 
 	tests := []struct {
-		name      string
-		fileName  string
-		isDir     bool
+		name       string
+		fileName   string
+		isDir      bool
 		wantIgnore bool
 	}{
 		{
-			name:      "node_modules directory",
-			fileName:  "node_modules",
-			isDir:     true,
+			name:       "node_modules directory",
+			fileName:   "node_modules",
+			isDir:      true,
 			wantIgnore: true,
 		},
 		{
-			name:      ".git directory",
-			fileName:  ".git",
-			isDir:     true,
+			name:       ".git directory",
+			fileName:   ".git",
+			isDir:      true,
 			wantIgnore: true,
 		},
 		{
-			name:      "vendor directory",
-			fileName:  "vendor",
-			isDir:     true,
+			name:       "vendor directory",
+			fileName:   "vendor",
+			isDir:      true,
 			wantIgnore: true,
 		},
 		{
-			name:      "normal directory",
-			fileName:  "src",
-			isDir:     true,
+			name:       "normal directory",
+			fileName:   "src",
+			isDir:      true,
 			wantIgnore: false,
 		},
 		{
-			name:      ".pyc file",
-			fileName:  "test.pyc",
-			isDir:     false,
+			name:       ".pyc file",
+			fileName:   "test.pyc",
+			isDir:      false,
 			wantIgnore: true,
 		},
 		{
-			name:      ".go file",
-			fileName:  "main.go",
-			isDir:     false,
+			name:       ".go file",
+			fileName:   "main.go",
+			isDir:      false,
 			wantIgnore: false,
 		},
 		{
-			name:      ".gitignore file",
-			fileName:  ".gitignore",
-			isDir:     false,
+			name:       ".gitignore file",
+			fileName:   ".gitignore",
+			isDir:      false,
 			wantIgnore: false,
 		},
 		{
-			name:      "hidden file",
-			fileName:  ".hidden",
-			isDir:     false,
+			name:       "hidden file",
+			fileName:   ".hidden",
+			isDir:      false,
 			wantIgnore: true,
 		},
 	}

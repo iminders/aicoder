@@ -44,9 +44,9 @@ func (p *Provider) CurrentModel() string { return p.model }
 // --- native types ---
 
 type oaiMsg struct {
-	Role       string      `json:"role"`
-	Content    interface{} `json:"content"` // string or []oaiContent
-	ToolCallID string      `json:"tool_call_id,omitempty"`
+	Role       string        `json:"role"`
+	Content    interface{}   `json:"content"` // string or []oaiContent
+	ToolCallID string        `json:"tool_call_id,omitempty"`
 	ToolCalls  []oaiToolCall `json:"tool_calls,omitempty"`
 }
 
@@ -78,11 +78,11 @@ type oaiToolFunction struct {
 }
 
 type requestBody struct {
-	Model    string    `json:"model"`
-	Messages []oaiMsg  `json:"messages"`
-	Tools    []oaiTool `json:"tools,omitempty"`
-	Stream   bool      `json:"stream"`
-	MaxTokens int      `json:"max_tokens,omitempty"`
+	Model     string    `json:"model"`
+	Messages  []oaiMsg  `json:"messages"`
+	Tools     []oaiTool `json:"tools,omitempty"`
+	Stream    bool      `json:"stream"`
+	MaxTokens int       `json:"max_tokens,omitempty"`
 }
 
 func convertMessages(msgs []session.Message) []oaiMsg {
@@ -101,8 +101,8 @@ func convertMessages(msgs []session.Message) []oaiMsg {
 			case "tool_use":
 				inp, _ := json.Marshal(c.Input)
 				toolCalls = append(toolCalls, oaiToolCall{
-					ID:   c.ID,
-					Type: "function",
+					ID:       c.ID,
+					Type:     "function",
 					Function: oaiFunctionCall{Name: c.Name, Arguments: string(inp)},
 				})
 			case "tool_result":

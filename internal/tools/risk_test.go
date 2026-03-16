@@ -242,9 +242,9 @@ func TestClassifyToolRisk(t *testing.T) {
 
 func TestIsPathDangerous(t *testing.T) {
 	tests := []struct {
-		name        string
-		path        string
-		wantDanger  bool
+		name       string
+		path       string
+		wantDanger bool
 	}{
 		// Dangerous paths
 		{

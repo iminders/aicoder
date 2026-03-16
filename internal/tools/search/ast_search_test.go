@@ -49,11 +49,11 @@ func (m *MyStruct) privateMethod() {
 	tool := &ASTSearchTool{}
 
 	tests := []struct {
-		name         string
-		queryType    string
-		namePattern  string
-		exportedOnly bool
-		wantContains []string
+		name           string
+		queryType      string
+		namePattern    string
+		exportedOnly   bool
+		wantContains   []string
 		wantNotContain []string
 	}{
 		{
@@ -64,11 +64,11 @@ func (m *MyStruct) privateMethod() {
 			wantContains: []string{"PublicFunc", "privateFunc"},
 		},
 		{
-			name:         "find exported functions only",
-			queryType:    "function",
-			namePattern:  "",
-			exportedOnly: true,
-			wantContains: []string{"PublicFunc"},
+			name:           "find exported functions only",
+			queryType:      "function",
+			namePattern:    "",
+			exportedOnly:   true,
+			wantContains:   []string{"PublicFunc"},
 			wantNotContain: []string{"privateFunc"},
 		},
 		{
@@ -79,11 +79,11 @@ func (m *MyStruct) privateMethod() {
 			wantContains: []string{"Method", "privateMethod"},
 		},
 		{
-			name:         "find exported methods only",
-			queryType:    "method",
-			namePattern:  "",
-			exportedOnly: true,
-			wantContains: []string{"Method"},
+			name:           "find exported methods only",
+			queryType:      "method",
+			namePattern:    "",
+			exportedOnly:   true,
+			wantContains:   []string{"Method"},
 			wantNotContain: []string{"privateMethod"},
 		},
 		{
@@ -247,21 +247,21 @@ func DeleteUser() {}
 	tool := &ASTSearchTool{}
 
 	tests := []struct {
-		name         string
-		namePattern  string
-		wantContains []string
+		name           string
+		namePattern    string
+		wantContains   []string
 		wantNotContain []string
 	}{
 		{
-			name:         "find Get* functions",
-			namePattern:  "Get",
-			wantContains: []string{"GetUser", "GetPost"},
+			name:           "find Get* functions",
+			namePattern:    "Get",
+			wantContains:   []string{"GetUser", "GetPost"},
 			wantNotContain: []string{"SetUser", "DeleteUser"},
 		},
 		{
-			name:         "find *User functions",
-			namePattern:  "User",
-			wantContains: []string{"GetUser", "SetUser", "DeleteUser"},
+			name:           "find *User functions",
+			namePattern:    "User",
+			wantContains:   []string{"GetUser", "SetUser", "DeleteUser"},
 			wantNotContain: []string{"GetPost"},
 		},
 	}

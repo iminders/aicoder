@@ -84,7 +84,10 @@ func splitLines(s string) []string {
 }
 
 func computeHunks(oldLines, newLines []string) []Hunk {
-	type edit struct{ op rune; line string }
+	type edit struct {
+		op   rune
+		line string
+	}
 	edits := lcs(oldLines, newLines)
 
 	context := 3

@@ -1,0 +1,134 @@
+# GoReleaser configuration for aicoder
+# https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: aicoder
+    main: .
+    binary: aicoder
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/iminders/aicoder/pkg/version.Version={{.Version}}
+      - -X github.com/iminders/aicoder/pkg/version.Commit={{.Commit}}
+      - -X github.com/iminders/aicoder/pkg/version.BuildDate={{.Date}}
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: aicoder
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - docs/*
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+  groups:
+    - title: Features
+      regexp: '^feat:'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^fix:'
+      order: 1
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: iminders
+    name: aicoder
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+  header: |
+    ## aicoder v{{.Version}}
+
+    Release notes for version {{.Version}}.
+  footer: |
+    ## Installation
+
+    ### Homebrew (macOS/Linux)
+    ```bash
+    brew install iminders/tap/aicoder
+    ```
+
+    ### Install Script
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/iminders/aicoder/main/install.sh | bash
+    ```
+
+    ### npm
+    ```bash
+    npm install -g @iminders/aicoder
+    ```
+
+    ### Manual Download
+    Download the appropriate binary for your platform from the assets below.
+
+brews:
+  - name: aicoder
+    repository:
+      owner: iminders
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/iminders/aicoder
+    description: "AI-powered coding assistant CLI tool"
+    license: MIT
+    folder: Formula
+    install: |
+      bin.install "aicoder"
+    test: |
+      system "#{bin}/aicoder", "--version"
+
+nfpms:
+  - id: aicoder
+    package_name: aicoder
+    homepage: https://github.com/iminders/aicoder
+    maintainer: iminders <contact@iminders.com>
+    description: AI-powered coding assistant CLI tool
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin

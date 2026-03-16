@@ -22,9 +22,9 @@ const (
 // Model is the bubbletea model for the TUI.
 type Model struct {
 	// State
-	state   AppState
-	width   int
-	height  int
+	state    AppState
+	width    int
+	height   int
 	quitting bool
 
 	// UI components

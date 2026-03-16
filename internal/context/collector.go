@@ -10,11 +10,11 @@ import (
 
 // ProjectContext holds auto-discovered project information.
 type ProjectContext struct {
-	RootDir         string
-	AICoderMD       string // contents of AICODER.md if found
-	GitInfo         string
-	ProjectInfo     string
-	DirectoryTree   string // directory structure summary
+	RootDir       string
+	AICoderMD     string // contents of AICODER.md if found
+	GitInfo       string
+	ProjectInfo   string
+	DirectoryTree string // directory structure summary
 }
 
 // Collect gathers project context starting from the given directory.

@@ -338,13 +338,15 @@ func (t *DeleteFileTool) Execute(_ context.Context, raw json.RawMessage) (*tools
 
 // ─── Register all filesystem tools ───────────────────────────────────────────
 
-func Register(r interface{ Register(t interface {
-	Name() string
-	Risk() tools.RiskLevel
-	Description() string
-	Schema() json.RawMessage
-	Execute(ctx context.Context, input json.RawMessage) (*tools.Result, error)
-}) }) {
+func Register(r interface {
+	Register(t interface {
+		Name() string
+		Risk() tools.RiskLevel
+		Description() string
+		Schema() json.RawMessage
+		Execute(ctx context.Context, input json.RawMessage) (*tools.Result, error)
+	})
+}) {
 }
 
 func init() {

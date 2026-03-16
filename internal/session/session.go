@@ -11,19 +11,19 @@ import (
 
 // Message is a single LLM conversation turn.
 type Message struct {
-	Role    string    `json:"role"`    // system | user | assistant
+	Role    string    `json:"role"` // system | user | assistant
 	Content []Content `json:"content"`
 }
 
 // Content is one block within a message.
 type Content struct {
-	Type       string      `json:"type"`                 // text | tool_use | tool_result | image
-	Text       string      `json:"text,omitempty"`
-	ID         string      `json:"id,omitempty"`
-	Name       string      `json:"name,omitempty"`
-	Input      interface{} `json:"input,omitempty"`
-	ToolUseID  string      `json:"tool_use_id,omitempty"`
-	IsError    bool        `json:"is_error,omitempty"`
+	Type      string      `json:"type"` // text | tool_use | tool_result | image
+	Text      string      `json:"text,omitempty"`
+	ID        string      `json:"id,omitempty"`
+	Name      string      `json:"name,omitempty"`
+	Input     interface{} `json:"input,omitempty"`
+	ToolUseID string      `json:"tool_use_id,omitempty"`
+	IsError   bool        `json:"is_error,omitempty"`
 }
 
 // TextMessage builds a simple text message.
@@ -46,12 +46,12 @@ func (u *TokenUsage) Add(in, out int) {
 func (u *TokenUsage) CostEstimate(model string) float64 {
 	// Approximate pricing per million tokens
 	prices := map[string][2]float64{
-		"claude-opus-4-5":    {15.0, 75.0},
-		"claude-sonnet-4-5":  {3.0, 15.0},
-		"claude-haiku-4-5":   {0.25, 1.25},
-		"gpt-4o":             {5.0, 15.0},
-		"gpt-4o-mini":        {0.15, 0.60},
-		"DeepSeek-R1":         {0.20, 3.00},
+		"claude-opus-4-5":   {15.0, 75.0},
+		"claude-sonnet-4-5": {3.0, 15.0},
+		"claude-haiku-4-5":  {0.25, 1.25},
+		"gpt-4o":            {5.0, 15.0},
+		"gpt-4o-mini":       {0.15, 0.60},
+		"DeepSeek-R1":       {0.20, 3.00},
 	}
 	p, ok := prices[model]
 	if !ok {

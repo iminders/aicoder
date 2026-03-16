@@ -12,10 +12,10 @@ import (
 
 	"github.com/iminders/aicoder/internal/agent"
 	"github.com/iminders/aicoder/internal/config"
-	"github.com/iminders/aicoder/internal/logger"
 	"github.com/iminders/aicoder/internal/llm"
 	anthropicprovider "github.com/iminders/aicoder/internal/llm/anthropic"
 	openaiprovider "github.com/iminders/aicoder/internal/llm/openai"
+	"github.com/iminders/aicoder/internal/logger"
 	"github.com/iminders/aicoder/internal/slash"
 	"github.com/iminders/aicoder/internal/ui"
 	"github.com/iminders/aicoder/pkg/version"
@@ -28,13 +28,13 @@ import (
 
 // flags holds CLI flag values.
 var flags struct {
-	model             string
-	provider          string
-	verbose           bool
-	dangerouslySkip   bool
-	noAutoApprove     bool
-	file              string
-	version           bool
+	model           string
+	provider        string
+	verbose         bool
+	dangerouslySkip bool
+	noAutoApprove   bool
+	file            string
+	version         bool
 }
 
 // Execute is the main entry point called from main.go.

@@ -17,7 +17,7 @@ type MCPServerConfig struct {
 // Config is the resolved, merged configuration.
 type Config struct {
 	// LLM
-	Provider  string `json:"provider"`  // anthropic | openai | ollama
+	Provider  string `json:"provider"` // anthropic | openai | ollama
 	Model     string `json:"model"`
 	MaxTokens int    `json:"maxTokens"`
 	BaseURL   string `json:"baseUrl"` // custom endpoint

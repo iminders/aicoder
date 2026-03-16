@@ -213,7 +213,19 @@ func (h *Handler) cmdModel(args []string) {
 }
 
 func (h *Handler) cmdConfig(args []string) {
-	_ = args
+	// /config set key value - modify configuration
+	if len(args) >= 3 && args[0] == "set" {
+		key := args[1]
+		value := strings.Join(args[2:], " ")
+		if err := h.setConfig(key, value); err != nil {
+			ui.PrintError(err.Error())
+		} else {
+			ui.PrintSuccess(fmt.Sprintf("配置已更新: %s = %s", key, value))
+		}
+		return
+	}
+
+	// /config - show current configuration
 	fmt.Printf("\033[1m当前配置:\033[0m\n")
 	ui.PrintDivider()
 	fmt.Printf("  provider:          %s\n", h.cfg.Provider)
@@ -228,6 +240,47 @@ func (h *Handler) cmdConfig(args []string) {
 		fmt.Printf("  proxy:             %s\n", h.cfg.Proxy)
 	}
 	ui.PrintDivider()
+	fmt.Println("\n用法: /config set <key> <value>")
+	fmt.Println("示例: /config set theme dark")
+}
+
+func (h *Handler) setConfig(key, value string) error {
+	switch key {
+	case "provider":
+		if value != "anthropic" && value != "openai" {
+			return fmt.Errorf("provider 必须是 anthropic 或 openai")
+		}
+		h.cfg.Provider = value
+	case "model":
+		h.cfg.Model = value
+		h.sess.Model = value
+	case "maxTokens":
+		var tokens int
+		if _, err := fmt.Sscanf(value, "%d", &tokens); err != nil {
+			return fmt.Errorf("maxTokens 必须是数字")
+		}
+		h.cfg.MaxTokens = tokens
+	case "autoApprove":
+		h.cfg.AutoApprove = (value == "true" || value == "1")
+	case "autoApproveReads":
+		h.cfg.AutoApproveReads = (value == "true" || value == "1")
+	case "backupOnWrite":
+		h.cfg.BackupOnWrite = (value == "true" || value == "1")
+	case "theme":
+		if value != "dark" && value != "light" {
+			return fmt.Errorf("theme 必须是 dark 或 light")
+		}
+		h.cfg.Theme = value
+	case "language":
+		h.cfg.Language = value
+	case "proxy":
+		h.cfg.Proxy = value
+	default:
+		return fmt.Errorf("未知配置项: %s", key)
+	}
+
+	// Persist to user config file
+	return h.cfg.Save()
 }
 
 func (h *Handler) cmdInit() {

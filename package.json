@@ -1,0 +1,49 @@
+{
+  "name": "@iminders/aicoder",
+  "version": "1.0.0",
+  "description": "AI-powered coding assistant CLI tool",
+  "author": "iminders",
+  "license": "MIT",
+  "homepage": "https://github.com/iminders/aicoder",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iminders/aicoder.git"
+  },
+  "bugs": {
+    "url": "https://github.com/iminders/aicoder/issues"
+  },
+  "keywords": [
+    "ai",
+    "coding",
+    "assistant",
+    "cli",
+    "claude",
+    "gpt",
+    "agent",
+    "automation"
+  ],
+  "bin": {
+    "aicoder": "./bin/aicoder"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "files": [
+    "bin/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ]
+}

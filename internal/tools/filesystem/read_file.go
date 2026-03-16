@@ -12,7 +12,7 @@ import (
 
 type ReadFileTool struct{}
 
-func (t *ReadFileTool) Name() string        { return "read_file" }
+func (t *ReadFileTool) Name() string          { return "read_file" }
 func (t *ReadFileTool) Risk() tools.RiskLevel { return tools.RiskLow }
 func (t *ReadFileTool) Description() string {
 	return "Read the contents of a file. Optionally specify start_line and end_line (1-based) to read a range."

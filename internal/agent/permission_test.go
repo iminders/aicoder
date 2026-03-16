@@ -15,10 +15,10 @@ type mockTool struct {
 	risk tools.RiskLevel
 }
 
-func (m *mockTool) Name() string                                                    { return m.name }
-func (m *mockTool) Description() string                                             { return "mock" }
-func (m *mockTool) Schema() json.RawMessage                                         { return json.RawMessage(`{}`) }
-func (m *mockTool) Risk() tools.RiskLevel                                           { return m.risk }
+func (m *mockTool) Name() string            { return m.name }
+func (m *mockTool) Description() string     { return "mock" }
+func (m *mockTool) Schema() json.RawMessage { return json.RawMessage(`{}`) }
+func (m *mockTool) Risk() tools.RiskLevel   { return m.risk }
 func (m *mockTool) Execute(_ context.Context, _ json.RawMessage) (*tools.Result, error) {
 	return &tools.Result{Content: "ok"}, nil
 }

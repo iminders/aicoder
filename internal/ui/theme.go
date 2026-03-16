@@ -19,18 +19,18 @@ type Theme struct {
 	Dim       lipgloss.Color
 
 	// Styles
-	TitleStyle       lipgloss.Style
-	SubtitleStyle    lipgloss.Style
-	ErrorStyle       lipgloss.Style
-	SuccessStyle     lipgloss.Style
-	WarningStyle     lipgloss.Style
-	InfoStyle        lipgloss.Style
-	PromptStyle      lipgloss.Style
-	DividerStyle     lipgloss.Style
-	StatusBarStyle   lipgloss.Style
-	SpinnerStyle     lipgloss.Style
-	CodeBlockStyle   lipgloss.Style
-	KeywordStyle     lipgloss.Style
+	TitleStyle     lipgloss.Style
+	SubtitleStyle  lipgloss.Style
+	ErrorStyle     lipgloss.Style
+	SuccessStyle   lipgloss.Style
+	WarningStyle   lipgloss.Style
+	InfoStyle      lipgloss.Style
+	PromptStyle    lipgloss.Style
+	DividerStyle   lipgloss.Style
+	StatusBarStyle lipgloss.Style
+	SpinnerStyle   lipgloss.Style
+	CodeBlockStyle lipgloss.Style
+	KeywordStyle   lipgloss.Style
 }
 
 // DefaultTheme returns the default theme with carefully chosen colors.

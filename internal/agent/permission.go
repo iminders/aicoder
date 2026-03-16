@@ -48,7 +48,9 @@ func (g *PermissionGuard) Check(t tools.Tool, input json.RawMessage) PermResult 
 
 	// 1. Hard deny: forbidden command patterns
 	if t.Name() == "run_command" || t.Name() == "run_background" {
-		var inp struct{ Command string `json:"command"` }
+		var inp struct {
+			Command string `json:"command"`
+		}
 		_ = json.Unmarshal(input, &inp)
 		for _, forbidden := range g.cfg.ForbiddenCommands {
 			if strings.Contains(strings.ToLower(inp.Command), strings.ToLower(forbidden)) {
@@ -75,7 +77,9 @@ func (g *PermissionGuard) Check(t tools.Tool, input json.RawMessage) PermResult 
 
 	// 5. Auto-approve listed commands
 	if t.Name() == "run_command" {
-		var inp struct{ Command string `json:"command"` }
+		var inp struct {
+			Command string `json:"command"`
+		}
 		_ = json.Unmarshal(input, &inp)
 		for _, approved := range g.cfg.AutoApproveCommands {
 			if strings.HasPrefix(strings.TrimSpace(inp.Command), approved) {

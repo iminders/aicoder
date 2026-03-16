@@ -254,11 +254,11 @@ func IsPathDangerous(path string) bool {
 
 	// 检查是否包含危险模式
 	dangerousPatterns := []string{
-		"*",      // 通配符
-		"../",    // 路径遍历
-		"..\\",   // Windows 路径遍历
-		"/./",    // 当前目录引用
-		"//",     // 双斜杠
+		"*",    // 通配符
+		"../",  // 路径遍历
+		"..\\", // Windows 路径遍历
+		"/./",  // 当前目录引用
+		"//",   // 双斜杠
 	}
 
 	for _, pattern := range dangerousPatterns {

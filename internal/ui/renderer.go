@@ -7,9 +7,9 @@ import (
 
 // Renderer handles streaming output to the terminal with basic ANSI formatting.
 type Renderer struct {
-	buf        strings.Builder
+	buf         strings.Builder
 	inCodeBlock bool
-	codeLang   string
+	codeLang    string
 }
 
 func NewRenderer() *Renderer {

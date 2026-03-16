@@ -61,12 +61,12 @@ type nativeMsg struct {
 }
 
 type requestBody struct {
-	Model     string          `json:"model"`
-	MaxTokens int             `json:"max_tokens"`
-	System    string          `json:"system,omitempty"`
-	Messages  []nativeMsg     `json:"messages"`
+	Model     string           `json:"model"`
+	MaxTokens int              `json:"max_tokens"`
+	System    string           `json:"system,omitempty"`
+	Messages  []nativeMsg      `json:"messages"`
 	Tools     []llm.ToolSchema `json:"tools,omitempty"`
-	Stream    bool            `json:"stream"`
+	Stream    bool             `json:"stream"`
 }
 
 // convertMessages converts session.Message slice to native Anthropic messages.
@@ -161,10 +161,10 @@ func (p *Provider) Stream(ctx context.Context, req *llm.Request) (<-chan llm.Str
 
 // SSE event types from Anthropic
 type sseEvent struct {
-	Type  string          `json:"type"`
-	Index int             `json:"index"`
-	Delta *sseDelta       `json:"delta"`
-	Usage *sseUsage       `json:"usage"`
+	Type         string           `json:"type"`
+	Index        int              `json:"index"`
+	Delta        *sseDelta        `json:"delta"`
+	Usage        *sseUsage        `json:"usage"`
 	ContentBlock *sseContentBlock `json:"content_block"`
 }
 
