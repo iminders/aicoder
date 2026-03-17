@@ -666,7 +666,7 @@ var prices = map[string][2]float64{
     "claude-haiku-4-5":   {0.25, 1.25},
     "gpt-4o":             {5.0, 15.0},
     "gpt-4o-mini":        {0.15, 0.60},
-    "DeepSeek-R1":        {0.20, 3.00},
+    "DeepSeek-R1":        {0.24, 0.42},
 }
 
 func (u *TokenUsage) EstimateCost(model string) float64 {

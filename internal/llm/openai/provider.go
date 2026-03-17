@@ -1,3 +1,15 @@
+// Package openai implements the OpenAI-compatible LLM provider.
+//
+// Token Usage Handling:
+// This provider supports both LLM-provided usage information and client-side estimation.
+// When the LLM provides usage data in the streaming response, it is used directly.
+// When usage is null (common with local LLM deployments), the provider estimates
+// token counts using heuristics:
+//   - English text: ~4 characters per token
+//   - CJK text (Chinese/Japanese/Korean): ~1.5 characters per token
+//   - Mixed text: automatically detected based on character composition
+//
+// This ensures consistent token tracking across different LLM backends.
 package openai
 
 import (
@@ -199,7 +211,7 @@ func (p *Provider) Stream(ctx context.Context, req *llm.Request) (<-chan llm.Str
 	}
 
 	ch := make(chan llm.StreamEvent, 64)
-	go readStream(resp.Body, ch)
+	go readStream(resp.Body, ch, msgs)
 	return ch, nil
 }
 
@@ -217,7 +229,68 @@ type sseChunk struct {
 	} `json:"usage"`
 }
 
-func readStream(body io.ReadCloser, ch chan<- llm.StreamEvent) {
+// estimateTokens estimates token count from text content
+// Uses a simple heuristic: ~4 chars per token for English, ~1.5 chars per token for CJK
+func estimateTokens(text string) int {
+	if text == "" {
+		return 0
+	}
+
+	charCount := 0
+	cjkCount := 0
+
+	for _, r := range text {
+		charCount++
+		// Check if character is CJK (Chinese, Japanese, Korean)
+		if (r >= 0x4E00 && r <= 0x9FFF) || // CJK Unified Ideographs
+			(r >= 0x3400 && r <= 0x4DBF) || // CJK Extension A
+			(r >= 0x20000 && r <= 0x2A6DF) || // CJK Extension B
+			(r >= 0x2A700 && r <= 0x2B73F) || // CJK Extension C
+			(r >= 0x2B740 && r <= 0x2B81F) || // CJK Extension D
+			(r >= 0x2B820 && r <= 0x2CEAF) || // CJK Extension E
+			(r >= 0xF900 && r <= 0xFAFF) || // CJK Compatibility Ideographs
+			(r >= 0x2F800 && r <= 0x2FA1F) { // CJK Compatibility Ideographs Supplement
+			cjkCount++
+		}
+	}
+
+	// Estimate: CJK chars ~1.5 chars/token, others ~4 chars/token
+	if cjkCount > charCount/2 {
+		// Mostly CJK text
+		return int(float64(charCount) / 1.5)
+	}
+	// Mostly non-CJK text
+	return charCount / 4
+}
+
+// estimateInputTokens estimates input tokens from messages
+func estimateInputTokens(msgs []session.Message) int {
+	total := 0
+	for _, msg := range msgs {
+		for _, c := range msg.Content {
+			switch c.Type {
+			case "text":
+				total += estimateTokens(c.Text)
+			case "tool_use":
+				// Estimate tool use as JSON string
+				if c.Input != nil {
+					// Convert input to JSON string for estimation
+					if inputBytes, err := json.Marshal(c.Input); err == nil {
+						total += estimateTokens(string(inputBytes))
+					}
+				}
+				total += estimateTokens(c.Name) + 10 // overhead for tool structure
+			case "tool_result":
+				total += estimateTokens(c.Text) + 5 // overhead for result structure
+			}
+		}
+	}
+	// Add overhead for message structure (role, etc.)
+	total += len(msgs) * 4
+	return total
+}
+
+func readStream(body io.ReadCloser, ch chan<- llm.StreamEvent, msgs []session.Message) {
 	defer body.Close()
 	defer close(ch)
 
@@ -227,6 +300,9 @@ func readStream(body io.ReadCloser, ch chan<- llm.StreamEvent) {
 		args strings.Builder
 	}
 	tools := map[int]*toolAccum{}
+
+	var outputText strings.Builder
+	var receivedUsage bool
 
 	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 512*1024), 512*1024)
@@ -248,6 +324,7 @@ func readStream(body io.ReadCloser, ch chan<- llm.StreamEvent) {
 		}
 
 		if chunk.Usage != nil {
+			receivedUsage = true
 			ch <- llm.StreamEvent{
 				Type:   "usage",
 				Input:  chunk.Usage.PromptTokens,
@@ -258,6 +335,7 @@ func readStream(body io.ReadCloser, ch chan<- llm.StreamEvent) {
 		for _, choice := range chunk.Choices {
 			if choice.Delta.Content != "" {
 				ch <- llm.StreamEvent{Type: "text_delta", Delta: choice.Delta.Content}
+				outputText.WriteString(choice.Delta.Content)
 			}
 			for _, tc := range choice.Delta.ToolCalls {
 				idx := 0 // OpenAI uses index field
@@ -287,12 +365,29 @@ func readStream(body io.ReadCloser, ch chan<- llm.StreamEvent) {
 							Input: raw,
 						},
 					}
+					// Add tool call to output for token estimation
+					outputText.WriteString(t.name)
+					outputText.WriteString(t.args.String())
 				}
 				tools = map[int]*toolAccum{}
 			}
 			if choice.FinishReason == "stop" {
 				ch <- llm.StreamEvent{Type: "done"}
 			}
+		}
+	}
+
+	// If no usage was received, estimate tokens
+	if !receivedUsage {
+		inputTokens := estimateInputTokens(msgs)
+		outputTokens := estimateTokens(outputText.String())
+
+		logger.Debug("Estimated tokens (usage not provided by LLM): in=%d out=%d", inputTokens, outputTokens)
+
+		ch <- llm.StreamEvent{
+			Type:   "usage",
+			Input:  inputTokens,
+			Output: outputTokens,
 		}
 	}
 }
