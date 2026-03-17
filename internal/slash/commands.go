@@ -57,6 +57,12 @@ func (h *Handler) Handle(input string) (handled bool, shouldExit bool) {
 		h.cmdConfig(args)
 	case "/init":
 		h.cmdInit()
+	case "/sessions":
+		h.cmdSessions()
+	case "/save":
+		h.cmdSave()
+	case "/tools":
+		h.cmdTools()
 	default:
 		ui.PrintWarn(fmt.Sprintf("未知命令: %s  (输入 /help 查看所有命令)", cmd))
 	}
@@ -65,21 +71,24 @@ func (h *Handler) Handle(input string) (handled bool, shouldExit bool) {
 
 func (h *Handler) cmdHelp() {
 	help := `
-┌─────────────────────────────────────────────────────────────────┐
-│                    aicoder 命令帮助                              │
-├──────────────┬──────────────────────────────────────────────────┤
-│ /help        │ 显示此帮助信息                                    │
-│ /clear       │ 清空当前会话上下文                                │
-│ /history     │ 查看对话历史摘要                                  │
-│ /undo        │ 撤销上一次文件修改                                │
-│ /diff        │ 查看本次会话所有文件变更                          │
-│ /commit [msg]│ Git 提交本次会话的变更                            │
-│ /cost        │ 查看 Token 用量和费用估算                         │
-│ /model [m]   │ 查看或切换 AI 模型                               │
-│ /config      │ 查看当前配置                                      │
-│ /init        │ 在当前目录初始化 AICODER.md                       │
-│ /exit        │ 退出程序                                          │
-└──────────────┴──────────────────────────────────────────────────┘`
+┌──────────────────────────────────────────────────────────────────┐
+│                     aicoder 命令帮助                              │
+├───────────────┬──────────────────────────────────────────────────┤
+│ /help         │ 显示此帮助信息                                    │
+│ /clear        │ 清空当前会话上下文                                │
+│ /history      │ 查看对话历史摘要                                  │
+│ /undo         │ 撤销上一次文件修改                                │
+│ /diff         │ 查看本次会话所有文件变更                          │
+│ /commit [msg] │ Git 提交本次会话的变更                            │
+│ /cost         │ 查看 Token 用量和费用估算                         │
+│ /model [m]    │ 查看或切换 AI 模型                               │
+│ /config       │ 查看当前配置                                      │
+│ /init         │ 在当前目录初始化 AICODER.md                       │
+│ /sessions     │ 列出历史会话                                      │
+│ /save         │ 手动保存当前会话                                  │
+│ /tools        │ 列出所有可用工具                                  │
+│ /exit         │ 退出程序                                          │
+└───────────────┴──────────────────────────────────────────────────┘`
 	fmt.Println(help)
 }
 
@@ -213,19 +222,7 @@ func (h *Handler) cmdModel(args []string) {
 }
 
 func (h *Handler) cmdConfig(args []string) {
-	// /config set key value - modify configuration
-	if len(args) >= 3 && args[0] == "set" {
-		key := args[1]
-		value := strings.Join(args[2:], " ")
-		if err := h.setConfig(key, value); err != nil {
-			ui.PrintError(err.Error())
-		} else {
-			ui.PrintSuccess(fmt.Sprintf("配置已更新: %s = %s", key, value))
-		}
-		return
-	}
-
-	// /config - show current configuration
+	_ = args
 	fmt.Printf("\033[1m当前配置:\033[0m\n")
 	ui.PrintDivider()
 	fmt.Printf("  provider:          %s\n", h.cfg.Provider)
@@ -240,47 +237,6 @@ func (h *Handler) cmdConfig(args []string) {
 		fmt.Printf("  proxy:             %s\n", h.cfg.Proxy)
 	}
 	ui.PrintDivider()
-	fmt.Println("\n用法: /config set <key> <value>")
-	fmt.Println("示例: /config set theme dark")
-}
-
-func (h *Handler) setConfig(key, value string) error {
-	switch key {
-	case "provider":
-		if value != "anthropic" && value != "openai" {
-			return fmt.Errorf("provider 必须是 anthropic 或 openai")
-		}
-		h.cfg.Provider = value
-	case "model":
-		h.cfg.Model = value
-		h.sess.Model = value
-	case "maxTokens":
-		var tokens int
-		if _, err := fmt.Sscanf(value, "%d", &tokens); err != nil {
-			return fmt.Errorf("maxTokens 必须是数字")
-		}
-		h.cfg.MaxTokens = tokens
-	case "autoApprove":
-		h.cfg.AutoApprove = (value == "true" || value == "1")
-	case "autoApproveReads":
-		h.cfg.AutoApproveReads = (value == "true" || value == "1")
-	case "backupOnWrite":
-		h.cfg.BackupOnWrite = (value == "true" || value == "1")
-	case "theme":
-		if value != "dark" && value != "light" {
-			return fmt.Errorf("theme 必须是 dark 或 light")
-		}
-		h.cfg.Theme = value
-	case "language":
-		h.cfg.Language = value
-	case "proxy":
-		h.cfg.Proxy = value
-	default:
-		return fmt.Errorf("未知配置项: %s", key)
-	}
-
-	// Persist to user config file
-	return h.cfg.Save()
 }
 
 func (h *Handler) cmdInit() {
@@ -309,4 +265,86 @@ _由 aicoder v%s 生成于 %s_
 		return
 	}
 	ui.PrintSuccess("已创建 AICODER.md，请编辑它来描述您的项目")
+}
+func (h *Handler) cmdSessions() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		ui.PrintError("无法确定 home 目录: " + err.Error())
+		return
+	}
+	dir := filepath.Join(home, ".aicoder", "sessions")
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) == 0 {
+		ui.PrintInfo("暂无历史会话记录 (会话在退出时自动保存)")
+		return
+	}
+
+	fmt.Printf("\033[1m历史会话 (%d 个):\033[0m\n", len(entries))
+	ui.PrintDivider()
+
+	// Show most recent 20, newest first
+	start := 0
+	if len(entries) > 20 {
+		start = len(entries) - 20
+	}
+	for i := len(entries) - 1; i >= start; i-- {
+		e := entries[i]
+		info, _ := e.Info()
+		size := ""
+		if info != nil {
+			size = fmt.Sprintf("%.1fKB", float64(info.Size())/1024)
+		}
+		name := strings.TrimSuffix(e.Name(), ".json")
+		// Try to parse timestamp from name (Unix nanoseconds)
+		modTime := ""
+		if info != nil {
+			modTime = info.ModTime().Format("2006-01-02 15:04")
+		}
+		fmt.Printf("  \033[36m%s\033[0m  %s  %s\n", name[:min(len(name), 20)], modTime, size)
+	}
+	ui.PrintDivider()
+	fmt.Println("  提示：会话文件保存在", dir)
+}
+
+func (h *Handler) cmdSave() {
+	if err := h.sess.Save(); err != nil {
+		ui.PrintError("保存会话失败: " + err.Error())
+		return
+	}
+	ui.PrintSuccess(fmt.Sprintf("会话已保存 (ID: %s)", h.sess.ID))
+}
+
+func (h *Handler) cmdTools() {
+	// Import tools package to list all registered tools
+	// We use a type assertion via the session's known tool names
+	fmt.Printf("\033[1m已注册工具:\033[0m\n")
+	ui.PrintDivider()
+
+	// Tool metadata is stored in the global registry; we query it via the session
+	// Since we can't import tools here (circular), we print a static summary
+	rows := []struct{ name, risk, desc string }{
+		{"read_file",       "低", "读取文件内容（支持行范围）"},
+		{"write_file",      "中", "写入或创建文件"},
+		{"edit_file",       "中", "精确替换文件中的字符串"},
+		{"list_dir",        "低", "列出目录结构（树形）"},
+		{"search_files",    "低", "正则搜索文件内容"},
+		{"delete_file",     "高", "删除文件（不可逆）"},
+		{"run_command",     "中", "执行 Shell 命令"},
+		{"run_background",  "中", "后台启动长时进程"},
+		{"grep_search",     "低", "全目录正则搜索"},
+		{"web_search",      "低", "联网搜索（需 TAVILY_API_KEY）"},
+	}
+	for _, r := range rows {
+		riskColor := "\033[32m"
+		if r.risk == "中" { riskColor = "\033[33m" }
+		if r.risk == "高" { riskColor = "\033[31m" }
+		fmt.Printf("  %-18s %s[%s]\033[0m  %s\n", r.name, riskColor, r.risk, r.desc)
+	}
+	ui.PrintDivider()
+	fmt.Println("  MCP 工具以 <server>__<tool> 格式列出（连接后可见）")
+}
+
+func min(a, b int) int {
+	if a < b { return a }
+	return b
 }
