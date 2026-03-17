@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/chzyer/readline"
 	"github.com/iminders/aicoder/internal/agent"
 	"github.com/iminders/aicoder/internal/config"
 	"github.com/iminders/aicoder/internal/llm"
@@ -170,7 +171,26 @@ func runOneShot(a *agent.Agent, prompt string) {
 
 func runInteractive(a *agent.Agent, cfg *config.Config) {
 	slashHandler := slash.NewHandler(a.Session(), cfg)
-	reader := bufio.NewReader(os.Stdin)
+
+	// Setup readline with tab completion
+	completer := readline.NewPrefixCompleter()
+	for _, cmd := range slash.AllCommands() {
+		completer.Children = append(completer.Children, readline.PcItem(cmd.Name))
+	}
+
+	rl, err := readline.NewEx(&readline.Config{
+		Prompt:          "\033[1;34m> \033[0m",
+		HistoryFile:     getHistoryFile(),
+		AutoComplete:    completer,
+		InterruptPrompt: "^C",
+		EOFPrompt:       "exit",
+	})
+	if err != nil {
+		// Fallback to basic reader if readline fails
+		runInteractiveBasic(a, cfg)
+		return
+	}
+	defer rl.Close()
 
 	// Setup signal handling for Ctrl+C (interrupt current task, not exit)
 	sigCh := make(chan os.Signal, 1)
@@ -189,10 +209,15 @@ func runInteractive(a *agent.Agent, cfg *config.Config) {
 	}()
 
 	for {
-		fmt.Print("\033[1;34m> \033[0m")
-		line, err := reader.ReadString('\n')
+		line, err := rl.Readline()
 		if err != nil {
-			if err == io.EOF {
+			if err == readline.ErrInterrupt {
+				if cancelCurrent != nil {
+					cancelCurrent()
+					cancelCurrent = nil
+				}
+				continue
+			} else if err == io.EOF {
 				fmt.Println("\n再见！")
 				break
 			}
@@ -253,5 +278,78 @@ func buildProvider(cfg *config.Config) (llm.Provider, error) {
 		return openaiprovider.New(apiKey, cfg.BaseURL, cfg.Model), nil
 	default:
 		return nil, fmt.Errorf("不支持的 provider: %s (支持: anthropic, openai)", cfg.Provider)
+	}
+}
+
+// getHistoryFile returns the path to the readline history file.
+func getHistoryFile() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	historyDir := fmt.Sprintf("%s/.aicoder", home)
+	os.MkdirAll(historyDir, 0755)
+	return fmt.Sprintf("%s/history", historyDir)
+}
+
+// runInteractiveBasic is a fallback interactive mode without readline support.
+func runInteractiveBasic(a *agent.Agent, cfg *config.Config) {
+	slashHandler := slash.NewHandler(a.Session(), cfg)
+	reader := bufio.NewReader(os.Stdin)
+
+	// Setup signal handling for Ctrl+C (interrupt current task, not exit)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+
+	var cancelCurrent context.CancelFunc
+
+	go func() {
+		for range sigCh {
+			if cancelCurrent != nil {
+				fmt.Println("\n\033[33m[任务已中断，输入新的指令继续]\033[0m")
+				cancelCurrent()
+				cancelCurrent = nil
+			}
+		}
+	}()
+
+	for {
+		fmt.Print("\033[1;34m> \033[0m")
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				fmt.Println("\n再见！")
+				break
+			}
+			continue
+		}
+		input := strings.TrimSpace(line)
+		if input == "" {
+			continue
+		}
+
+		// Handle slash commands
+		if strings.HasPrefix(input, "/") {
+			handled, shouldExit := slashHandler.Handle(input)
+			if shouldExit {
+				fmt.Println("再见！")
+				return
+			}
+			if handled {
+				continue
+			}
+		}
+
+		// Run agent
+		ctx, cancel := context.WithCancel(context.Background())
+		cancelCurrent = cancel
+
+		ui.PrintDivider()
+		if err := a.Run(ctx, input); err != nil && ctx.Err() == nil {
+			ui.PrintError(err.Error())
+		}
+		cancel()
+		cancelCurrent = nil
+		ui.PrintDivider()
 	}
 }
