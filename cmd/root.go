@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/chzyer/readline"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/iminders/aicoder/internal/agent"
 	"github.com/iminders/aicoder/internal/config"
 	"github.com/iminders/aicoder/internal/llm"
@@ -170,87 +170,47 @@ func runOneShot(a *agent.Agent, prompt string) {
 }
 
 func runInteractive(a *agent.Agent, cfg *config.Config) {
+	// Get current directory
+	dir, err := os.Getwd()
+	if err != nil {
+		dir = "."
+	}
+
+	// Create slash command handler
 	slashHandler := slash.NewHandler(a.Session(), cfg)
 
-	// Setup readline with tab completion
-	completer := readline.NewPrefixCompleter()
-	for _, cmd := range slash.AllCommands() {
-		completer.Children = append(completer.Children, readline.PcItem(cmd.Name))
-	}
+	// Use bubbletea TUI for interactive mode
+	model := ui.NewModel(cfg.Model, dir)
 
-	rl, err := readline.NewEx(&readline.Config{
-		Prompt:          "\033[1;34m> \033[0m",
-		HistoryFile:     getHistoryFile(),
-		AutoComplete:    completer,
-		InterruptPrompt: "^C",
-		EOFPrompt:       "exit",
+	// Set up slash command callback
+	model.SetOnSlashCommand(func(input string) (bool, bool) {
+		return slashHandler.Handle(input)
 	})
-	if err != nil {
-		// Fallback to basic reader if readline fails
-		runInteractiveBasic(a, cfg)
-		return
+
+	// Set up slash commands for autocomplete
+	var slashCmds []string
+	for _, cmd := range slash.AllCommands() {
+		slashCmds = append(slashCmds, cmd.Name)
 	}
-	defer rl.Close()
+	model.SetSlashCommands(slashCmds)
 
-	// Setup signal handling for Ctrl+C (interrupt current task, not exit)
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
+	// Set up callbacks
+	model.SetOnSubmit(func(input string) error {
+		ctx := context.Background()
+		model.SetState(ui.StateThinking)
+		err := a.Run(ctx, input)
+		model.SetState(ui.StateIdle)
+		return err
+	})
 
-	var cancelCurrent context.CancelFunc
+	model.SetOnCancel(func() {
+		// Handle cancellation
+	})
 
-	go func() {
-		for range sigCh {
-			if cancelCurrent != nil {
-				fmt.Println("\n\033[33m[任务已中断，输入新的指令继续]\033[0m")
-				cancelCurrent()
-				cancelCurrent = nil
-			}
-		}
-	}()
-
-	for {
-		line, err := rl.Readline()
-		if err != nil {
-			if err == readline.ErrInterrupt {
-				if cancelCurrent != nil {
-					cancelCurrent()
-					cancelCurrent = nil
-				}
-				continue
-			} else if err == io.EOF {
-				fmt.Println("\n再见！")
-				break
-			}
-			continue
-		}
-		input := strings.TrimSpace(line)
-		if input == "" {
-			continue
-		}
-
-		// Handle slash commands
-		if strings.HasPrefix(input, "/") {
-			handled, shouldExit := slashHandler.Handle(input)
-			if shouldExit {
-				fmt.Println("再见！")
-				return
-			}
-			if handled {
-				continue
-			}
-		}
-
-		// Run agent
-		ctx, cancel := context.WithCancel(context.Background())
-		cancelCurrent = cancel
-
-		ui.PrintDivider()
-		if err := a.Run(ctx, input); err != nil && ctx.Err() == nil {
-			ui.PrintError(err.Error())
-		}
-		cancel()
-		cancelCurrent = nil
-		ui.PrintDivider()
+	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error running TUI: %v\n", err)
+		os.Exit(1)
 	}
 }
 
