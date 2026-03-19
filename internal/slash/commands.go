@@ -17,12 +17,32 @@ import (
 
 // Handler processes a slash command string. Returns true if the program should exit.
 type Handler struct {
-	sess *session.Session
-	cfg  *config.Config
+	sess    *session.Session
+	cfg     *config.Config
+	printer func(...interface{}) // For printing output (can be tea.Program.Println or fmt.Println)
 }
 
 func NewHandler(sess *session.Session, cfg *config.Config) *Handler {
-	return &Handler{sess: sess, cfg: cfg}
+	return &Handler{
+		sess:    sess,
+		cfg:     cfg,
+		printer: func(args ...interface{}) { fmt.Println(args...) }, // Default to fmt.Println
+	}
+}
+
+// SetPrinter sets the print function (use tea.Program.Println for TUI mode)
+func (h *Handler) SetPrinter(printer func(...interface{})) {
+	h.printer = printer
+}
+
+// println is a helper that uses the configured printer
+func (h *Handler) println(args ...interface{}) {
+	h.printer(args...)
+}
+
+// printf is a helper for formatted printing
+func (h *Handler) printf(format string, args ...interface{}) {
+	h.printer(fmt.Sprintf(format, args...))
 }
 
 // Handle dispatches a slash command. Returns (handled, shouldExit).
@@ -89,7 +109,7 @@ func (h *Handler) cmdHelp() {
 │ /tools        │ 列出所有可用工具                                  │
 │ /exit         │ 退出程序                                          │
 └───────────────┴──────────────────────────────────────────────────┘`
-	fmt.Println(help)
+	h.printer(help)
 }
 
 func (h *Handler) cmdClear() {
@@ -103,7 +123,7 @@ func (h *Handler) cmdHistory() {
 		ui.PrintInfo("暂无对话历史")
 		return
 	}
-	fmt.Printf("\033[1m对话历史 (%d 条消息):\033[0m\n", len(msgs))
+	h.printf("\033[1m对话历史 (%d 条消息):\033[0m\n", len(msgs))
 	ui.PrintDivider()
 	for i, m := range msgs {
 		if m.Role == "system" {
@@ -130,7 +150,7 @@ func (h *Handler) cmdHistory() {
 				break
 			}
 		}
-		fmt.Printf("%s[%d] %s %s\033[0m\n", color, i, icon, preview)
+		h.printf("%s[%d] %s %s\033[0m\n", color, i, icon, preview)
 	}
 	ui.PrintDivider()
 }
@@ -154,13 +174,13 @@ func (h *Handler) cmdDiff() {
 		ui.PrintInfo("本次会话暂无文件变更")
 		return
 	}
-	fmt.Printf("\033[1m本次会话文件变更 (%d 个文件):\033[0m\n", len(changes))
+	h.printf("\033[1m本次会话文件变更 (%d 个文件):\033[0m\n", len(changes))
 	ui.PrintDivider()
 	for path, after := range changes {
 		before, _ := os.ReadFile(path)
 		d := diff.ColorDiff(string(before), string(after), path)
 		if d != "" {
-			fmt.Print(d)
+			h.printer(d)
 		}
 	}
 }
@@ -186,7 +206,7 @@ func (h *Handler) cmdCommit(args []string) {
 		return
 	}
 	ui.PrintSuccess("已提交: " + msg)
-	fmt.Println(string(out))
+	h.println(string(out))
 }
 
 func (h *Handler) cmdCost() {
@@ -194,25 +214,25 @@ func (h *Handler) cmdCost() {
 	model := h.sess.Model
 	est := usage.CostEstimate(model)
 	ui.PrintDivider()
-	fmt.Printf("  \033[1m模型:\033[0m      %s\n", model)
-	fmt.Printf("  \033[1m输入 tokens:\033[0m %d\n", usage.InputTokens)
-	fmt.Printf("  \033[1m输出 tokens:\033[0m %d\n", usage.OutputTokens)
-	fmt.Printf("  \033[1m费用估算:\033[0m   $%.4f USD\n", est)
+	h.printf("  \033[1m模型:\033[0m      %s\n", model)
+	h.printf("  \033[1m输入 tokens:\033[0m %d\n", usage.InputTokens)
+	h.printf("  \033[1m输出 tokens:\033[0m %d\n", usage.OutputTokens)
+	h.printf("  \033[1m费用估算:\033[0m   $%.4f USD\n", est)
 	ui.PrintDivider()
 }
 
 func (h *Handler) cmdModel(args []string) {
 	if len(args) == 0 {
-		fmt.Printf("当前模型: \033[1m%s\033[0m\n", h.sess.Model)
-		fmt.Println("可用模型示例:")
+		h.printf("当前模型: \033[1m%s\033[0m\n", h.sess.Model)
+		h.println("可用模型示例:")
 		models := []string{
 			"claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5-20251001",
 			"gpt-4o", "gpt-4o-mini",
 		}
 		for _, m := range models {
-			fmt.Printf("  - %s\n", m)
+			h.printf("  - %s\n", m)
 		}
-		fmt.Println("用法: /model <model-name>")
+		h.println("用法: /model <model-name>")
 		return
 	}
 	newModel := args[0]
@@ -223,18 +243,18 @@ func (h *Handler) cmdModel(args []string) {
 
 func (h *Handler) cmdConfig(args []string) {
 	_ = args
-	fmt.Printf("\033[1m当前配置:\033[0m\n")
+	h.printf("\033[1m当前配置:\033[0m\n")
 	ui.PrintDivider()
-	fmt.Printf("  provider:          %s\n", h.cfg.Provider)
-	fmt.Printf("  model:             %s\n", h.cfg.Model)
-	fmt.Printf("  maxTokens:         %d\n", h.cfg.MaxTokens)
-	fmt.Printf("  autoApprove:       %v\n", h.cfg.AutoApprove)
-	fmt.Printf("  autoApproveReads:  %v\n", h.cfg.AutoApproveReads)
-	fmt.Printf("  backupOnWrite:     %v\n", h.cfg.BackupOnWrite)
-	fmt.Printf("  theme:             %s\n", h.cfg.Theme)
-	fmt.Printf("  language:          %s\n", h.cfg.Language)
+	h.printf("  provider:          %s\n", h.cfg.Provider)
+	h.printf("  model:             %s\n", h.cfg.Model)
+	h.printf("  maxTokens:         %d\n", h.cfg.MaxTokens)
+	h.printf("  autoApprove:       %v\n", h.cfg.AutoApprove)
+	h.printf("  autoApproveReads:  %v\n", h.cfg.AutoApproveReads)
+	h.printf("  backupOnWrite:     %v\n", h.cfg.BackupOnWrite)
+	h.printf("  theme:             %s\n", h.cfg.Theme)
+	h.printf("  language:          %s\n", h.cfg.Language)
 	if h.cfg.Proxy != "" {
-		fmt.Printf("  proxy:             %s\n", h.cfg.Proxy)
+		h.printf("  proxy:             %s\n", h.cfg.Proxy)
 	}
 	ui.PrintDivider()
 }
@@ -279,7 +299,7 @@ func (h *Handler) cmdSessions() {
 		return
 	}
 
-	fmt.Printf("\033[1m历史会话 (%d 个):\033[0m\n", len(entries))
+	h.printf("\033[1m历史会话 (%d 个):\033[0m\n", len(entries))
 	ui.PrintDivider()
 
 	// Show most recent 20, newest first
@@ -300,10 +320,10 @@ func (h *Handler) cmdSessions() {
 		if info != nil {
 			modTime = info.ModTime().Format("2006-01-02 15:04")
 		}
-		fmt.Printf("  \033[36m%s\033[0m  %s  %s\n", name[:min(len(name), 20)], modTime, size)
+		h.printf("  \033[36m%s\033[0m  %s  %s\n", name[:min(len(name), 20)], modTime, size)
 	}
 	ui.PrintDivider()
-	fmt.Println("  提示：会话文件保存在", dir)
+	h.println("  提示：会话文件保存在", dir)
 }
 
 func (h *Handler) cmdSave() {
@@ -317,7 +337,7 @@ func (h *Handler) cmdSave() {
 func (h *Handler) cmdTools() {
 	// Import tools package to list all registered tools
 	// We use a type assertion via the session's known tool names
-	fmt.Printf("\033[1m已注册工具:\033[0m\n")
+	h.printf("\033[1m已注册工具:\033[0m\n")
 	ui.PrintDivider()
 
 	// Tool metadata is stored in the global registry; we query it via the session
@@ -338,10 +358,10 @@ func (h *Handler) cmdTools() {
 		riskColor := "\033[32m"
 		if r.risk == "中" { riskColor = "\033[33m" }
 		if r.risk == "高" { riskColor = "\033[31m" }
-		fmt.Printf("  %-18s %s[%s]\033[0m  %s\n", r.name, riskColor, r.risk, r.desc)
+		h.printf("  %-18s %s[%s]\033[0m  %s\n", r.name, riskColor, r.risk, r.desc)
 	}
 	ui.PrintDivider()
-	fmt.Println("  MCP 工具以 <server>__<tool> 格式列出（连接后可见）")
+	h.println("  MCP 工具以 <server>__<tool> 格式列出（连接后可见）")
 }
 
 func min(a, b int) int {

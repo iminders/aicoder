@@ -10,11 +10,11 @@ import (
 	"strings"
 	"syscall"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/iminders/aicoder/internal/agent"
 	"github.com/iminders/aicoder/internal/config"
 	"github.com/iminders/aicoder/internal/llm"
 	anthropicprovider "github.com/iminders/aicoder/internal/llm/anthropic"
+	deepseekprovider "github.com/iminders/aicoder/internal/llm/deepseek"
 	openaiprovider "github.com/iminders/aicoder/internal/llm/openai"
 	"github.com/iminders/aicoder/internal/logger"
 	"github.com/iminders/aicoder/internal/slash"
@@ -170,48 +170,8 @@ func runOneShot(a *agent.Agent, prompt string) {
 }
 
 func runInteractive(a *agent.Agent, cfg *config.Config) {
-	// Get current directory
-	dir, err := os.Getwd()
-	if err != nil {
-		dir = "."
-	}
-
-	// Create slash command handler
-	slashHandler := slash.NewHandler(a.Session(), cfg)
-
-	// Use bubbletea TUI for interactive mode
-	model := ui.NewModel(cfg.Model, dir)
-
-	// Set up slash command callback
-	model.SetOnSlashCommand(func(input string) (bool, bool) {
-		return slashHandler.Handle(input)
-	})
-
-	// Set up slash commands for autocomplete
-	var slashCmds []string
-	for _, cmd := range slash.AllCommands() {
-		slashCmds = append(slashCmds, cmd.Name)
-	}
-	model.SetSlashCommands(slashCmds)
-
-	// Set up callbacks
-	model.SetOnSubmit(func(input string) error {
-		ctx := context.Background()
-		model.SetState(ui.StateThinking)
-		err := a.Run(ctx, input)
-		model.SetState(ui.StateIdle)
-		return err
-	})
-
-	model.SetOnCancel(func() {
-		// Handle cancellation
-	})
-
-	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
-	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error running TUI: %v\n", err)
-		os.Exit(1)
-	}
+	// Use simple interactive mode (bubbletea TUI conflicts with agent's streaming output)
+	runInteractiveBasic(a, cfg)
 }
 
 func isPipeInput() bool {
@@ -236,8 +196,15 @@ func buildProvider(cfg *config.Config) (llm.Provider, error) {
 			return nil, fmt.Errorf("未找到 OpenAI API Key，请设置 OPENAI_API_KEY 环境变量")
 		}
 		return openaiprovider.New(apiKey, cfg.BaseURL, cfg.Model), nil
+	case "deepseek":
+		// For local deployments, API key is optional
+		// If baseURL is set to localhost/127.0.0.1, allow empty API key
+		if apiKey == "" && (cfg.BaseURL == "" || (!strings.Contains(cfg.BaseURL, "localhost") && !strings.Contains(cfg.BaseURL, "127.0.0.1"))) {
+			return nil, fmt.Errorf("未找到 DeepSeek API Key，请设置 DEEPSEEK_API_KEY 环境变量")
+		}
+		return deepseekprovider.New(apiKey, cfg.BaseURL, cfg.Model), nil
 	default:
-		return nil, fmt.Errorf("不支持的 provider: %s (支持: anthropic, openai)", cfg.Provider)
+		return nil, fmt.Errorf("不支持的 provider: %s (支持: anthropic, openai, deepseek)", cfg.Provider)
 	}
 }
 

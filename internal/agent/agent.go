@@ -15,6 +15,7 @@ import (
 	"github.com/iminders/aicoder/internal/session"
 	"github.com/iminders/aicoder/internal/tools"
 	"github.com/iminders/aicoder/internal/ui"
+	"github.com/mattn/go-isatty"
 )
 
 // Agent orchestrates the full LLM ↔ tool loop.
@@ -76,6 +77,11 @@ func (a *Agent) Run(ctx context.Context, userInput string) error {
 		// Consume the stream
 		var toolCalls []llm.ToolUseBlock
 		var textBuf strings.Builder
+		var thinkingActive bool
+		var thinkingChars int
+
+		// Check if stdout is a terminal
+		isTTY := isatty.IsTerminal(os.Stdout.Fd())
 
 		for event := range eventCh {
 			select {
@@ -86,8 +92,33 @@ func (a *Agent) Run(ctx context.Context, userInput string) error {
 			}
 			switch event.Type {
 			case "text_delta":
+				// If we were thinking, clear the thinking indicator
+				if thinkingActive && isTTY {
+					fmt.Print("\r\033[K") // Clear line
+				}
+				thinkingActive = false
+				thinkingChars = 0
 				a.renderer.Write(event.Delta)
 				textBuf.WriteString(event.Delta)
+			case "thinking_delta":
+				// Show thinking progress without newline (only in TTY mode)
+				thinkingChars += len(event.Delta)
+				if !thinkingActive {
+					thinkingActive = true
+				}
+				// Only update indicator in TTY mode to avoid cluttering pipe output
+				if isTTY {
+					fmt.Printf("\r\033[90m[Thinking... %d chars]\033[0m", thinkingChars)
+				}
+			case "thinking_done":
+				// DeepSeek R1 thinking complete (</think> detected)
+				if thinkingActive && isTTY {
+					fmt.Print("\r\033[K") // Clear the thinking line
+				}
+				thinkingActive = false
+				thinkingChars = 0
+				logger.Debug("thinking complete: %d chars", len(event.Delta))
+				// Don't write thinking content to output
 			case "tool_use_end":
 				if event.ToolUse != nil {
 					toolCalls = append(toolCalls, *event.ToolUse)

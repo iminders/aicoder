@@ -87,7 +87,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.markdown != nil {
 			m.markdown.SetWidth(msg.Width - 4)
 		}
-		return m, nil
+		// Clear screen on resize to avoid artifacts
+		return m, tea.ClearScreen
 
 	case tea.KeyMsg:
 		return m.handleKeyPress(msg)
@@ -132,12 +133,14 @@ func (m *Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 			// Check for slash commands
 			if strings.HasPrefix(input, "/") && m.onSlashCmd != nil {
+				// Execute slash command (will use tea.Println for output)
 				handled, shouldExit := m.onSlashCmd(input)
 				if shouldExit {
 					m.quitting = true
 					return m, tea.Quit
 				}
 				if handled {
+					// After slash command, just return to keep TUI running
 					return m, nil
 				}
 			}
@@ -205,33 +208,53 @@ func (m *Model) View() string {
 
 	var b strings.Builder
 
-	// Status bar
+	// Status bar (always at top)
 	b.WriteString(m.renderStatusBar())
 	b.WriteString("\n\n")
 
+	// Calculate available height for content
+	// Reserve space for: status bar (3 lines), input area (4 lines), margins
+	availableHeight := m.height - 7
+	if availableHeight < 5 {
+		availableHeight = 5
+	}
+
+	// Collect all content lines
+	var contentLines []string
+
 	// Messages
 	for _, msg := range m.messages {
-		b.WriteString(m.renderMessage(msg))
-		b.WriteString("\n")
+		rendered := m.renderMessage(msg)
+		lines := strings.Split(rendered, "\n")
+		contentLines = append(contentLines, lines...)
 	}
 
 	// Current streaming output
 	if m.currentOutput.Len() > 0 {
-		b.WriteString(m.theme.InfoStyle.Render("Assistant: "))
-		b.WriteString(m.currentOutput.String())
+		output := m.theme.InfoStyle.Render("Assistant: ") + m.currentOutput.String()
+		lines := strings.Split(output, "\n")
+		contentLines = append(contentLines, lines...)
+	}
+
+	// Show only the last N lines that fit in the available height
+	startLine := 0
+	if len(contentLines) > availableHeight {
+		startLine = len(contentLines) - availableHeight
+	}
+
+	for i := startLine; i < len(contentLines); i++ {
+		b.WriteString(contentLines[i])
 		b.WriteString("\n")
 	}
 
-	// Spinner for thinking/streaming state
+	// Spinner for thinking/streaming state (on same line)
 	if m.state == StateThinking {
-		b.WriteString(m.spinner.View())
-		b.WriteString(" Thinking...\n")
+		b.WriteString(m.spinner.View() + " Thinking...")
 	} else if m.state == StateStreaming {
-		b.WriteString(m.spinner.View())
-		b.WriteString(" Streaming...\n")
+		b.WriteString(m.spinner.View() + " Streaming...")
 	}
 
-	// Input prompt
+	// Input prompt (always at bottom)
 	if m.state == StateIdle {
 		b.WriteString("\n")
 		b.WriteString(m.theme.PromptStyle.Render("> "))

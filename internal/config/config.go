@@ -136,6 +136,8 @@ func APIKey(provider string) string {
 		return os.Getenv("ANTHROPIC_API_KEY")
 	case "openai":
 		return os.Getenv("OPENAI_API_KEY")
+	case "deepseek":
+		return os.Getenv("DEEPSEEK_API_KEY")
 	case "google":
 		return os.Getenv("GOOGLE_API_KEY")
 	default:
