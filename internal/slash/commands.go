@@ -382,10 +382,6 @@ func min(a, b int) int {
 // It returns (handled bool, shouldExit bool) so the caller can optionally
 // hand off to the agent with a skill override.
 func (h *Handler) cmdSkill(args []string) (bool, bool) {
-	if err := skills.Load(); err != nil {
-		ui.PrintError("加载 Skill 失败: " + err.Error())
-		return true, false
-	}
 
 	if len(args) == 0 || args[0] == "list" {
 		h.printSkillList()
