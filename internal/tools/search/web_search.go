@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/iminders/aicoder/internal/tools"
 )
@@ -138,10 +137,8 @@ func (t *WebSearchTool) tavilySearch(ctx context.Context, query string, numResul
 
 	req.Header.Set("Content-Type", "application/json")
 
-	// 设置超时
-	client := &http.Client{
-		Timeout: 180 * time.Second,
-	}
+	// 使用不带超时的client，完全依赖context控制超时
+	client := &http.Client{}
 
 	// 发送请求
 	resp, err := client.Do(req)
