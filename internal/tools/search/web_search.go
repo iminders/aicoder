@@ -17,7 +17,7 @@ type WebSearchTool struct{}
 func (t *WebSearchTool) Name() string          { return "web_search" }
 func (t *WebSearchTool) Risk() tools.RiskLevel { return tools.RiskLow }
 func (t *WebSearchTool) Description() string {
-	return "Search the web using Tavily API. Requires TAVILY_API_KEY environment variable to be set. Returns top search results with titles, snippets, and URLs."
+	return "Search the web using Tavily API. Returns top search results with titles, snippets, and URLs."
 }
 
 func (t *WebSearchTool) Schema() json.RawMessage {
