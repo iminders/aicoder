@@ -242,15 +242,38 @@ func runInteractiveBasic(a *agent.Agent, cfg *config.Config) {
 
 	for {
 		fmt.Print("\033[1;34m> \033[0m")
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				fmt.Println("\n再见！")
+
+		// Read input with multi-line support
+		// Use Ctrl+D (EOF) to submit, or empty line after content
+		var inputLines []string
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
+					if len(inputLines) > 0 {
+						// Submit accumulated input
+						break
+					}
+					fmt.Println("\n再见！")
+					return
+				}
+				continue
+			}
+
+			trimmed := strings.TrimSpace(line)
+
+			// If empty line and we have content, submit
+			if trimmed == "" && len(inputLines) > 0 {
 				break
 			}
-			continue
+
+			// If not empty, accumulate
+			if trimmed != "" {
+				inputLines = append(inputLines, line)
+			}
 		}
-		input := strings.TrimSpace(line)
+
+		input := strings.TrimSpace(strings.Join(inputLines, ""))
 		if input == "" {
 			continue
 		}

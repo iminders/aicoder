@@ -414,48 +414,100 @@ func estimateInputTokens(messages []session.Message) int {
 	return total
 }
 
-// convertMessages converts session messages to DeepSeek API format.
+// convertMessages converts session messages to DeepSeek API format (OpenAI-compatible).
 func convertMessages(messages []session.Message) []map[string]interface{} {
 	var result []map[string]interface{}
 
 	for _, msg := range messages {
-		m := map[string]interface{}{
-			"role": msg.Role,
-		}
-
-		// Simple text content
-		if len(msg.Content) == 1 && msg.Content[0].Type == "text" {
-			m["content"] = msg.Content[0].Text
-		} else {
-			// Multi-part content
-			var parts []map[string]interface{}
+		// Handle different message types
+		if msg.Role == "user" {
+			// Check if this is a tool result message
+			hasToolResult := false
 			for _, c := range msg.Content {
-				switch c.Type {
-				case "text":
-					parts = append(parts, map[string]interface{}{
-						"type": "text",
-						"text": c.Text,
-					})
-				case "tool_use":
-					parts = append(parts, map[string]interface{}{
-						"type": "tool_use",
-						"id":   c.ID,
-						"name": c.Name,
-						"input": c.Input,
-					})
-				case "tool_result":
-					parts = append(parts, map[string]interface{}{
-						"type":         "tool_result",
-						"tool_use_id":  c.ToolUseID,
-						"content":      c.Text,
-						"is_error":     c.IsError,
+				if c.Type == "tool_result" {
+					hasToolResult = true
+					break
+				}
+			}
+
+			if hasToolResult {
+				// Convert tool results to OpenAI format (role: "tool")
+				for _, c := range msg.Content {
+					if c.Type == "tool_result" {
+						result = append(result, map[string]interface{}{
+							"role":         "tool",
+							"tool_call_id": c.ToolUseID,
+							"content":      c.Text,
+						})
+					}
+				}
+			} else {
+				// Regular user message
+				var textParts []string
+				for _, c := range msg.Content {
+					if c.Type == "text" {
+						textParts = append(textParts, c.Text)
+					}
+				}
+				if len(textParts) > 0 {
+					result = append(result, map[string]interface{}{
+						"role":    "user",
+						"content": strings.Join(textParts, "\n"),
 					})
 				}
 			}
-			m["content"] = parts
-		}
+		} else if msg.Role == "assistant" {
+			// Check if this message has tool calls
+			var toolCalls []map[string]interface{}
+			var textContent string
 
-		result = append(result, m)
+			for _, c := range msg.Content {
+				if c.Type == "text" {
+					textContent = c.Text
+				} else if c.Type == "tool_use" {
+					// Convert to OpenAI tool_calls format
+					argsJSON, _ := json.Marshal(c.Input)
+					toolCalls = append(toolCalls, map[string]interface{}{
+						"id":   c.ID,
+						"type": "function",
+						"function": map[string]interface{}{
+							"name":      c.Name,
+							"arguments": string(argsJSON),
+						},
+					})
+				}
+			}
+
+			m := map[string]interface{}{
+				"role": "assistant",
+			}
+
+			if textContent != "" {
+				m["content"] = textContent
+			} else {
+				m["content"] = "" // OpenAI requires content field
+			}
+
+			if len(toolCalls) > 0 {
+				m["tool_calls"] = toolCalls
+			}
+
+			result = append(result, m)
+		} else {
+			// System or other roles - simple text
+			var textParts []string
+			for _, c := range msg.Content {
+				if c.Type == "text" {
+					textParts = append(textParts, c.Text)
+				}
+			}
+			if len(textParts) > 0 {
+				result = append(result, map[string]interface{}{
+					"role":    msg.Role,
+					"content": strings.Join(textParts, "\n"),
+				})
+			}
+		}
 	}
 
 	return result
