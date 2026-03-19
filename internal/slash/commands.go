@@ -359,7 +359,7 @@ func (h *Handler) cmdTools() {
 		{"run_command",     "中", "执行 Shell 命令"},
 		{"run_background",  "中", "后台启动长时进程"},
 		{"grep_search",     "低", "全目录正则搜索"},
-		{"web_search",      "低", "联网搜索（需 TAVILY_API_KEY）"},
+		{"web_search",      "低", "联网搜索"},
 	}
 	for _, r := range rows {
 		riskColor := "\033[32m"

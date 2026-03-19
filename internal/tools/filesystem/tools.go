@@ -75,13 +75,15 @@ func (t *WriteFileTool) Execute(_ context.Context, raw json.RawMessage) (*tools.
 	if err := checkSandbox(in.Path); err != nil {
 		return &tools.Result{IsError: true, Content: err.Error()}, nil
 	}
-	// Snapshot before state
-	var before []byte
-	before, _ = os.ReadFile(in.Path)
 
 	if err := os.MkdirAll(filepath.Dir(in.Path), 0755); err != nil {
 		return &tools.Result{IsError: true, Content: err.Error()}, nil
 	}
+
+	// Snapshot before state
+	var before []byte
+	before, _ = os.ReadFile(in.Path)
+
 	if err := os.WriteFile(in.Path, []byte(in.Content), 0644); err != nil {
 		return &tools.Result{IsError: true, Content: err.Error()}, nil
 	}
