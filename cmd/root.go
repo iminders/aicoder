@@ -17,6 +17,7 @@ import (
 	deepseekprovider "github.com/iminders/aicoder/internal/llm/deepseek"
 	openaiprovider "github.com/iminders/aicoder/internal/llm/openai"
 	"github.com/iminders/aicoder/internal/logger"
+	"github.com/iminders/aicoder/internal/skills"
 	"github.com/iminders/aicoder/internal/slash"
 	"github.com/iminders/aicoder/internal/ui"
 	"github.com/iminders/aicoder/pkg/version"
@@ -25,6 +26,7 @@ import (
 	_ "github.com/iminders/aicoder/internal/tools/filesystem"
 	_ "github.com/iminders/aicoder/internal/tools/search"
 	_ "github.com/iminders/aicoder/internal/tools/shell"
+
 )
 
 // flags holds CLI flag values.
@@ -105,6 +107,11 @@ func Execute() {
 
 	// Init logger
 	logger.Init(flags.verbose)
+
+	// Load skills (built-ins + user custom)
+	if err := skills.Load(); err != nil {
+		logger.Warn("skill load error: %v", err)
+	}
 
 	// Build provider
 	provider, err := buildProvider(cfg)
@@ -286,6 +293,23 @@ func runInteractiveBasic(a *agent.Agent, cfg *config.Config) {
 				return
 			}
 			if handled {
+				// Check if /skill <n> <prompt> queued a skill run
+				if a.Session().PendingSkillName != "" {
+					skillName := a.Session().PendingSkillName
+					prompt := a.Session().PendingPrompt
+					a.Session().PendingSkillName = ""
+					a.Session().PendingPrompt = ""
+ 
+					ctx, cancel := context.WithCancel(context.Background())
+					cancelCurrent = cancel
+					ui.PrintDivider()
+					if err := a.RunWithSkillByName(ctx, prompt, skillName); err != nil && ctx.Err() == nil {
+						ui.PrintError(err.Error())
+					}
+					cancel()
+					cancelCurrent = nil
+					ui.PrintDivider()
+				}
 				continue
 			}
 		}

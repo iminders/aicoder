@@ -13,6 +13,7 @@ import (
 	"github.com/iminders/aicoder/internal/llm"
 	"github.com/iminders/aicoder/internal/logger"
 	"github.com/iminders/aicoder/internal/session"
+	"github.com/iminders/aicoder/internal/skills"
 	"github.com/iminders/aicoder/internal/tools"
 	"github.com/iminders/aicoder/internal/ui"
 	"github.com/mattn/go-isatty"
@@ -56,7 +57,42 @@ func New(cfg *config.Config, provider llm.Provider) *Agent {
 func (a *Agent) Session() *session.Session { return a.sess }
 
 // Run processes one user turn and drives the Agent Loop until the model stops.
+// It auto-detects applicable skills and injects their prompts.
 func (a *Agent) Run(ctx context.Context, userInput string) error {
+	// Auto-detect skill from input
+	if skill := skills.Global.Detect(userInput); skill != nil {
+		return a.RunWithSkill(ctx, userInput, skill)
+	}
+	return a.run(ctx, userInput)
+}
+ 
+// RunWithSkill runs with a specific skill injected as additional context.
+func (a *Agent) RunWithSkill(ctx context.Context, userInput string, skill *skills.Skill) error {
+	ui.PrintInfo(fmt.Sprintf("🎯 技能激活: %s — %s", skill.Name, skill.Description))
+	if skill.OutputFile != "" {
+		ui.PrintInfo(fmt.Sprintf("📄 建议输出文件: %s", skill.OutputFile))
+	}
+ 
+	// Inject skill prompt as a system-level context message for this turn only.
+	// We add it as a user message prefix so it doesn't pollute the system prompt.
+	augmented := fmt.Sprintf("[技能上下文: %s]\n%s\n\n---\n用户需求：%s",
+		skill.Name, skill.Prompt, userInput)
+	return a.run(ctx, augmented)
+}
+ 
+// RunWithSkillByName looks up a skill by name and delegates to RunWithSkill.
+func (a *Agent) RunWithSkillByName(ctx context.Context, userInput, skillName string) error {
+	skill := skills.Global.Get(skillName)
+	if skill == nil {
+		// Skill not found — run without it but warn
+		ui.PrintWarn(fmt.Sprintf("Skill %q not found, running without skill context", skillName))
+		return a.run(ctx, userInput)
+	}
+	return a.RunWithSkill(ctx, userInput, skill)
+}
+
+// Run processes one user turn and drives the Agent Loop until the model stops.
+func (a *Agent) run(ctx context.Context, userInput string) error {
 	a.sess.AppendMessage(session.TextMessage("user", userInput))
 
 	for iteration := 0; iteration < 20; iteration++ {

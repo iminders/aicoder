@@ -79,6 +79,11 @@ type Session struct {
 	Snapshots []FileSnapshot
 	Usage     TokenUsage
 	Model     string
+
+	// PendingSkill / PendingPrompt are set by /skill <name> <prompt>
+	// and consumed by the interactive loop to trigger RunWithSkill.
+	PendingSkillName string
+	PendingPrompt string
 }
 
 // New creates a fresh session.

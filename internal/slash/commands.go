@@ -10,6 +10,7 @@ import (
 
 	"github.com/iminders/aicoder/internal/config"
 	"github.com/iminders/aicoder/internal/session"
+	"github.com/iminders/aicoder/internal/skills"
 	"github.com/iminders/aicoder/internal/ui"
 	"github.com/iminders/aicoder/pkg/diff"
 	"github.com/iminders/aicoder/pkg/version"
@@ -83,6 +84,8 @@ func (h *Handler) Handle(input string) (handled bool, shouldExit bool) {
 		h.cmdSave()
 	case "/tools":
 		h.cmdTools()
+	case "/skill", "/skills":
+		return h.cmdSkill(args)
 	default:
 		ui.PrintWarn(fmt.Sprintf("未知命令: %s  (输入 /help 查看所有命令)", cmd))
 	}
@@ -107,6 +110,10 @@ func (h *Handler) cmdHelp() {
 │ /sessions     │ 列出历史会话                                      │
 │ /save         │ 手动保存当前会话                                  │
 │ /tools        │ 列出所有可用工具                                  │
+│ /skill list          │ 列出所有内置 Skill                             │
+│ /skill <名称>        │ 显示 Skill 详情                               │
+│ /skill <名称> <提示> │ 以指定 Skill 模式运行                         │
+│ /skill new <名称>    │ 创建自定义 Skill 模板                         │
 │ /exit         │ 退出程序                                          │
 └───────────────┴──────────────────────────────────────────────────┘`
 	h.printer(help)
@@ -367,4 +374,163 @@ func (h *Handler) cmdTools() {
 func min(a, b int) int {
 	if a < b { return a }
 	return b
+}
+
+
+
+// cmdSkill handles: /skill list | /skill <name> | /skill <name> <prompt> | /skill new <name>
+// It returns (handled bool, shouldExit bool) so the caller can optionally
+// hand off to the agent with a skill override.
+func (h *Handler) cmdSkill(args []string) (bool, bool) {
+	if err := skills.Load(); err != nil {
+		ui.PrintError("加载 Skill 失败: " + err.Error())
+		return true, false
+	}
+
+	if len(args) == 0 || args[0] == "list" {
+		h.printSkillList()
+		return true, false
+	}
+
+	if args[0] == "new" {
+		if len(args) < 2 {
+			ui.PrintWarn("用法: /skill new <名称>")
+			return true, false
+		}
+		h.createUserSkill(args[1])
+		return true, false
+	}
+
+	// /skill <name> [optional prompt...]
+	skillName := args[0]
+	sk := skills.Global.Get(skillName)
+	if sk == nil {
+		ui.PrintError(fmt.Sprintf("未找到 Skill %q，输入 /skill list 查看所有可用 Skill", skillName))
+		return true, false
+	}
+
+	if len(args) == 1 {
+		// Show skill details
+		h.printSkillDetail(sk)
+		return true, false
+	}
+
+	// /skill <name> <user prompt> — signal caller to run agent with this skill
+	// We store the pending skill+prompt in session metadata and return a special
+	// sentinel so the interactive loop can handle it.
+	prompt := strings.Join(args[1:], " ")
+	fmt.Printf("\033[90m[Skill %q 已激活，正在处理: %s]\033[0m\n", sk.Name, prompt)
+	// Inject skill directly — store on session for the loop to pick up
+	h.sess.PendingSkillName = sk.Name
+	h.sess.PendingPrompt = prompt
+	return true, false
+}
+
+func (h *Handler) printSkillList() {
+	all := skills.Global.All()
+	fmt.Printf("\033[1m内置 Skill (%d 个):\033[0m\n", len(all))
+	ui.PrintDivider()
+	for _, s := range all {
+		tag := "\033[34m[内置]\033[0m"
+		if strings.HasPrefix(s.Name, "user:") {
+			tag = "\033[32m[自定义]\033[0m"
+		}
+		outFile := ""
+		if s.OutputFile != "" {
+			outFile = fmt.Sprintf("  \033[90m→ %s\033[0m", s.OutputFile)
+		}
+		fmt.Printf("  %-12s %s  %s%s\n", s.Name, tag, s.Description, outFile)
+	}
+	ui.PrintDivider()
+	fmt.Println("  用法: /skill <名称> <你的需求描述>")
+	fmt.Println("  示例: /skill prd 电商平台用户评价系统")
+	fmt.Println("  自动触发: 直接描述需求，aicoder 会自动匹配合适的 Skill")
+}
+
+func (h *Handler) printSkillDetail(sk *skills.Skill) {
+	fmt.Printf("\n\033[1m🎯 Skill: %s\033[0m\n", sk.Name)
+	ui.PrintDivider()
+	fmt.Printf("  \033[1m描述:\033[0m    %s\n", sk.Description)
+	if len(sk.Aliases) > 0 {
+		fmt.Printf("  \033[1m别名:\033[0m    %s\n", strings.Join(sk.Aliases, ", "))
+	}
+	if len(sk.Triggers) > 0 {
+		fmt.Printf("  \033[1m触发词:\033[0m  %s\n", strings.Join(sk.Triggers[:min(3, len(sk.Triggers))], " | "))
+	}
+	if sk.OutputFile != "" {
+		fmt.Printf("  \033[1m输出文件:\033[0m %s\n", sk.OutputFile)
+	}
+	ui.PrintDivider()
+	// Show first 10 lines of the prompt as preview
+	lines := strings.Split(sk.Prompt, "\n")
+	preview := lines
+	truncated := false
+	if len(lines) > 12 {
+		preview = lines[:12]
+		truncated = true
+	}
+	fmt.Println("\033[90m" + strings.Join(preview, "\n") + "\033[0m")
+	if truncated {
+		fmt.Printf("\033[90m... (共 %d 行) ...\033[0m\n", len(lines))
+	}
+	ui.PrintDivider()
+	fmt.Printf("  运行: /skill %s <你的需求描述>\n\n", sk.Name)
+}
+
+func (h *Handler) createUserSkill(name string) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		ui.PrintError("无法获取 home 目录: " + err.Error())
+		return
+	}
+	dir := filepath.Join(home, ".aicoder", "skills")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		ui.PrintError("创建目录失败: " + err.Error())
+		return
+	}
+	path := filepath.Join(dir, name+".md")
+	if _, err := os.Stat(path); err == nil {
+		ui.PrintWarn(fmt.Sprintf("Skill %q 已存在: %s", name, path))
+		return
+	}
+
+	template := fmt.Sprintf(`---
+name: %s
+aliases: []
+description: 在这里填写 Skill 的一句话描述
+triggers:
+  - 触发关键词1
+  - 触发关键词2
+output_file: output.md
+---
+
+# Skill: %s
+
+在这里描述这个 Skill 的职责和使用场景。
+
+## 输出结构
+
+1. **章节一** — 说明
+2. **章节二** — 说明
+
+## 写作规范
+
+- 规范1
+- 规范2
+
+## 操作方式
+
+1. 先用工具收集信息
+2. 按结构生成文档
+3. 保存到输出文件
+
+_由 aicoder v%s 生成于 %s_
+`, name, name, version.Version, time.Now().Format("2006-01-02"))
+
+	if err := os.WriteFile(path, []byte(template), 0644); err != nil {
+		ui.PrintError("创建 Skill 失败: " + err.Error())
+		return
+	}
+	ui.PrintSuccess(fmt.Sprintf("已创建自定义 Skill 模板: %s", path))
+	fmt.Println("  请编辑该文件，然后重启 aicoder 或输入 /skill list 刷新")
 }
