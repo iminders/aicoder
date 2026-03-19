@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -19,7 +18,7 @@ type WebSearchTool struct{}
 func (t *WebSearchTool) Name() string          { return "web_search" }
 func (t *WebSearchTool) Risk() tools.RiskLevel { return tools.RiskLow }
 func (t *WebSearchTool) Description() string {
-	return "Search the web using a search API. Requires SEARCH_API_KEY and SEARCH_ENGINE_ID environment variables to be set. Returns top search results with titles, snippets, and URLs."
+	return "Search the web using Tavily API. Requires TAVILY_API_KEY environment variable to be set. Returns top search results with titles, snippets, and URLs."
 }
 
 func (t *WebSearchTool) Schema() json.RawMessage {
@@ -46,12 +45,13 @@ type searchResult struct {
 	Snippet string `json:"snippet"`
 }
 
-type googleSearchResponse struct {
-	Items []struct {
+type tavilySearchResponse struct {
+	Results []struct {
 		Title   string `json:"title"`
-		Link    string `json:"link"`
-		Snippet string `json:"snippet"`
-	} `json:"items"`
+		URL     string `json:"url"`
+		Content string `json:"content"`
+		Score   float64 `json:"score"`
+	} `json:"results"`
 }
 
 func (t *WebSearchTool) Execute(ctx context.Context, raw json.RawMessage) (*tools.Result, error) {
@@ -72,24 +72,21 @@ func (t *WebSearchTool) Execute(ctx context.Context, raw json.RawMessage) (*tool
 	}
 
 	// 检查环境变量
-	apiKey := os.Getenv("SEARCH_API_KEY")
-	engineID := os.Getenv("SEARCH_ENGINE_ID")
+	apiKey := os.Getenv("TAVILY_API_KEY")
 
-	if apiKey == "" || engineID == "" {
+	if apiKey == "" {
 		return &tools.Result{
 			IsError: true,
-			Content: "Web search is not configured. Please set SEARCH_API_KEY and SEARCH_ENGINE_ID environment variables.\n\n" +
-				"To use Google Custom Search:\n" +
-				"1. Get API key from: https://developers.google.com/custom-search/v1/overview\n" +
-				"2. Create search engine at: https://programmablesearchengine.google.com/\n" +
-				"3. Set environment variables:\n" +
-				"   export SEARCH_API_KEY=\"your-api-key\"\n" +
-				"   export SEARCH_ENGINE_ID=\"your-engine-id\"",
+			Content: "Web search is not configured. Please set TAVILY_API_KEY environment variable.\n\n" +
+				"To use Tavily Search:\n" +
+				"1. Get API key from: https://tavily.com/\n" +
+				"2. Set environment variable:\n" +
+				"   export TAVILY_API_KEY=\"tvly-your-api-key\"",
 		}, nil
 	}
 
 	// 执行搜索
-	results, err := t.googleSearch(ctx, in.Query, in.NumResults, in.Language, apiKey, engineID)
+	results, err := t.tavilySearch(ctx, in.Query, in.NumResults, apiKey)
 	if err != nil {
 		return &tools.Result{IsError: true, Content: fmt.Sprintf("Search failed: %v", err)}, nil
 	}
@@ -117,24 +114,29 @@ func (t *WebSearchTool) Execute(ctx context.Context, raw json.RawMessage) (*tool
 	}, nil
 }
 
-// googleSearch 使用 Google Custom Search API 进行搜索
-func (t *WebSearchTool) googleSearch(ctx context.Context, query string, numResults int, language, apiKey, engineID string) ([]searchResult, error) {
-	// 构建 API URL
-	baseURL := "https://www.googleapis.com/customsearch/v1"
-	params := url.Values{}
-	params.Set("key", apiKey)
-	params.Set("cx", engineID)
-	params.Set("q", query)
-	params.Set("num", fmt.Sprintf("%d", numResults))
-	params.Set("lr", "lang_"+language)
+// tavilySearch 使用 Tavily Search API 进行搜索
+func (t *WebSearchTool) tavilySearch(ctx context.Context, query string, numResults int, apiKey string) ([]searchResult, error) {
+	// 构建请求体
+	requestBody := map[string]interface{}{
+		"api_key":        apiKey,
+		"query":          query,
+		"max_results":    numResults,
+		"search_depth":   "basic",
+		"include_answer": false,
+	}
 
-	apiURL := baseURL + "?" + params.Encode()
+	bodyJSON, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
 
 	// 创建 HTTP 请求
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.tavily.com/search", strings.NewReader(string(bodyJSON)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+
+	req.Header.Set("Content-Type", "application/json")
 
 	// 设置超时
 	client := &http.Client{
@@ -155,18 +157,18 @@ func (t *WebSearchTool) googleSearch(ctx context.Context, query string, numResul
 	}
 
 	// 解析响应
-	var searchResp googleSearchResponse
+	var searchResp tavilySearchResponse
 	if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	// 转换结果
-	results := make([]searchResult, 0, len(searchResp.Items))
-	for _, item := range searchResp.Items {
+	results := make([]searchResult, 0, len(searchResp.Results))
+	for _, item := range searchResp.Results {
 		results = append(results, searchResult{
 			Title:   item.Title,
-			Link:    item.Link,
-			Snippet: item.Snippet,
+			Link:    item.URL,
+			Snippet: item.Content,
 		})
 	}
 
