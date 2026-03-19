@@ -39,7 +39,7 @@ func New(apiKey, baseURL, model string) *Provider {
 		apiKey:  apiKey,
 		baseURL: baseURL,
 		model:   model,
-		client:  &http.Client{Timeout: 300 * time.Second},
+		client:  &http.Client{Timeout: 3000 * time.Second},
 	}
 }
 
