@@ -140,7 +140,7 @@ func (t *WebSearchTool) tavilySearch(ctx context.Context, query string, numResul
 
 	// 设置超时
 	client := &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: 180 * time.Second,
 	}
 
 	// 发送请求
