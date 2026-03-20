@@ -77,7 +77,8 @@ func SummarizeDirectory(rootPath string, config *SummarizerConfig) string {
 
 	// 渲染为字符串
 	var sb strings.Builder
-	sb.WriteString("项目结构(当前根目录为" + filepath.Base(rootPath) + "):\n")
+	// sb.WriteString("项目结构(当前根目录为" + filepath.Base(rootPath) + "):\n")
+	sb.WriteString("项目名称为：" + filepath.Base(rootPath) + "，项目结构:\n")
 	totalFiles := 0
 	renderTree(&sb, root, "", true, &totalFiles)
 
@@ -245,10 +246,11 @@ func renderTree(sb *strings.Builder, node *DirectoryNode, prefix string, isLast 
 				*totalFiles++
 			}
 		}
-	} else {
-		// 根节点
-		sb.WriteString(node.Name + "/\n")
 	}
+	// else {
+	// 根节点
+	// sb.WriteString(node.Name + "/\n")
+	// }
 
 	// 递归渲染子节点
 	for i, child := range node.Children {
