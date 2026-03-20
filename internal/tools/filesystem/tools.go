@@ -72,6 +72,9 @@ func (t *WriteFileTool) Execute(_ context.Context, raw json.RawMessage) (*tools.
 	if err := json.Unmarshal(raw, &in); err != nil {
 		return &tools.Result{IsError: true, Content: err.Error()}, nil
 	}
+	if in.Path == "" {
+		return &tools.Result{IsError: true, Content: "path cannot be empty"}, nil
+	}
 	if err := checkSandbox(in.Path); err != nil {
 		return &tools.Result{IsError: true, Content: err.Error()}, nil
 	}
