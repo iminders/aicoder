@@ -104,7 +104,7 @@ aicoder/
 │   │   ├── collector.go           # 上下文收集主入口
 │   │   ├── git.go                 # Git 信息（status/diff/log）
 │   │   ├── project.go             # 项目语言/依赖检测
-│   │   ├── aicoder_md.go          # AICODER.md 加载与解析
+│   │   ├── aicoder_md.go          # .AICODER.md 加载与解析
 │   │   └── summarizer.go          # 目录结构摘要生成
 │   │
 │   ├── session/                   # 会话管理
@@ -659,7 +659,7 @@ type FileSnapshot struct {
 **实现状态：** ✅ 已完成
 
 **收集的信息：**
-- AICODER.md 内容
+- .AICODER.md 内容
 - Git 状态 (分支、修改、最近提交)
 - 项目类型检测 (Go/Node.js/Python/Rust/Java/Ruby)
 - 项目根目录
@@ -667,7 +667,7 @@ type FileSnapshot struct {
 **系统提示词构成：**
 ```
 基础角色定义
-+ AICODER.md (项目说明)
++ .AICODER.md (项目说明)
 + 项目环境信息
 + Git 状态
 ```
@@ -753,7 +753,7 @@ type FileSnapshot struct {
 **待实现：**
 - ⏳ 多 Agent 并行任务
 - ⏳ Web Dashboard
-- ⏳ AICODER.md 模板市场
+- ⏳ .AICODER.md 模板市场
 - ⏳ VS Code 插件
 
 ### 8.4 技术债务和改进空间

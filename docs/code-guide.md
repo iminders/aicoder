@@ -488,7 +488,7 @@ func Collect() (*ProjectContext, error)
 
 收集内容:
 1. 查找项目根目录
-2. 读取 AICODER.md
+2. 读取 .AICODER.md
 3. 收集 Git 信息
 4. 检测项目类型
 
@@ -500,7 +500,7 @@ func (pc *ProjectContext) BuildSystemPrompt() string
 
 组合:
 - 基础角色定义
-- AICODER.md 内容
+- .AICODER.md 内容
 - 项目环境信息
 - Git 状态
 

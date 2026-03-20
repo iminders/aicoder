@@ -28,7 +28,7 @@
 | `/cost` | ✅ | 展示 Token 消耗和费用估算 |
 | `/model [name]` | ✅ | 查看或热切换 AI 模型 |
 | `/config [set key value]` | ✅ | 查看或修改配置并持久化 |
-| `/init` | ✅ | 生成 AICODER.md 模板 |
+| `/init` | ✅ | 生成 .AICODER.md 模板 |
 | `/exit`, `/quit`, `/q` | ✅ | 优雅退出程序 |
 
 #### 3. Tab 补全功能 (`internal/slash/completion.go`) 🆕

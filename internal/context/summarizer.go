@@ -310,7 +310,7 @@ func GetImportantFiles(rootPath string) []string {
 		"Gemfile",
 		".gitignore",
 		".env.example",
-		"AICODER.md",
+		".AICODER.md",
 	}
 
 	var files []string

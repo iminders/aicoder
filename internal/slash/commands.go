@@ -106,7 +106,7 @@ func (h *Handler) cmdHelp() {
 │ /cost         │ 查看 Token 用量和费用估算                         │
 │ /model [m]    │ 查看或切换 AI 模型                               │
 │ /config       │ 查看当前配置                                      │
-│ /init         │ 在当前目录初始化 AICODER.md                       │
+│ /init         │ 在当前目录初始化 .AICODER.md                       │
 │ /sessions     │ 列出历史会话                                      │
 │ /save         │ 手动保存当前会话                                  │
 │ /tools        │ 列出所有可用工具                                  │
@@ -267,9 +267,9 @@ func (h *Handler) cmdConfig(args []string) {
 }
 
 func (h *Handler) cmdInit() {
-	path := filepath.Join("AICODER.md")
+	path := filepath.Join(".AICODER.md")
 	if _, err := os.Stat(path); err == nil {
-		ui.PrintWarn("AICODER.md 已存在，跳过初始化")
+		ui.PrintWarn(".AICODER.md 已存在，跳过初始化")
 		return
 	}
 	template := fmt.Sprintf(`# 项目说明
@@ -284,14 +284,19 @@ func (h *Handler) cmdInit() {
 # 注意事项
 <!-- 描述需要特别注意的事项，例如禁止修改的文件、特殊依赖等 -->
 
+# 工具使用规范
+<!-- 说明如何使用 aicoder 的工具，例如文件操作、命令执行等 -->
+允许使用web_search工具进行联网搜索
+允许git clone 到third_party目录, 但禁止直接修改第三方代码
+
 _由 aicoder v%s 生成于 %s_
 `, version.Version, time.Now().Format("2006-01-02"))
 
 	if err := os.WriteFile(path, []byte(template), 0644); err != nil {
-		ui.PrintError("创建 AICODER.md 失败: " + err.Error())
+		ui.PrintError("创建 .AICODER.md 失败: " + err.Error())
 		return
 	}
-	ui.PrintSuccess("已创建 AICODER.md，请编辑它来描述您的项目")
+	ui.PrintSuccess("已创建 .AICODER.md，请编辑它来描述您的项目")
 }
 func (h *Handler) cmdSessions() {
 	home, err := os.UserHomeDir()
