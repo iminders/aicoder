@@ -77,7 +77,7 @@ func SummarizeDirectory(rootPath string, config *SummarizerConfig) string {
 
 	// 渲染为字符串
 	var sb strings.Builder
-	sb.WriteString("项目结构:\n")
+	sb.WriteString("项目结构(当前目录为 " + filepath.Base(rootPath) + "):\n")
 	totalFiles := 0
 	renderTree(&sb, root, "", true, &totalFiles)
 

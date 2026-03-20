@@ -82,11 +82,14 @@ func (t *WriteFileTool) Execute(_ context.Context, raw json.RawMessage) (*tools.
 
 	// Snapshot before state
 	var before []byte
-	before, _ = os.ReadFile(in.Path)
+	if _, err := os.Stat(in.Path); err == nil {
+		before, _ = os.ReadFile(in.Path)
+	}
 
 	if err := os.WriteFile(in.Path, []byte(in.Content), 0644); err != nil {
 		return &tools.Result{IsError: true, Content: err.Error()}, nil
 	}
+	
 	if SnapshotFunc != nil {
 		SnapshotFunc("write_file", fmt.Sprintf("%d", time.Now().UnixNano()), in.Path, before, []byte(in.Content))
 	}
