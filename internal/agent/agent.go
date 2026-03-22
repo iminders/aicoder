@@ -65,21 +65,21 @@ func (a *Agent) Run(ctx context.Context, userInput string) error {
 	}
 	return a.run(ctx, userInput)
 }
- 
+
 // RunWithSkill runs with a specific skill injected as additional context.
 func (a *Agent) RunWithSkill(ctx context.Context, userInput string, skill *skills.Skill) error {
 	ui.PrintInfo(fmt.Sprintf("🎯 技能激活: %s — %s", skill.Name, skill.Description))
 	if skill.OutputFile != "" {
 		ui.PrintInfo(fmt.Sprintf("📄 建议输出文件: %s", skill.OutputFile))
 	}
- 
+
 	// Inject skill prompt as a system-level context message for this turn only.
 	// We add it as a user message prefix so it doesn't pollute the system prompt.
 	augmented := fmt.Sprintf("[技能上下文: %s]\n%s\n\n---\n用户需求：%s",
 		skill.Name, skill.Prompt, userInput)
 	return a.run(ctx, augmented)
 }
- 
+
 // RunWithSkillByName looks up a skill by name and delegates to RunWithSkill.
 func (a *Agent) RunWithSkillByName(ctx context.Context, userInput, skillName string) error {
 	skill := skills.Global.Get(skillName)
@@ -95,7 +95,7 @@ func (a *Agent) RunWithSkillByName(ctx context.Context, userInput, skillName str
 func (a *Agent) run(ctx context.Context, userInput string) error {
 	a.sess.AppendMessage(session.TextMessage("user", userInput))
 
-	for iteration := 0; iteration < 20; iteration++ {
+	for iteration := 0; iteration < 50; iteration++ {
 		// Build the LLM request
 		req := &llm.Request{
 			Model:     a.cfg.Model,
