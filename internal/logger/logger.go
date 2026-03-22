@@ -33,31 +33,31 @@ func Init(verboseMode bool) {
 func Info(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if fileLogger != nil {
-		fileLogger.Printf("[INFO]  " + msg)
+		fileLogger.Print("[INFO]  " + msg)
 	}
 }
 
 func Debug(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if fileLogger != nil {
-		fileLogger.Printf("[DEBUG] " + msg)
+		fileLogger.Print("[DEBUG] " + msg)
 	}
 	if verbose {
-		fmt.Fprintf(os.Stderr, "\033[90m[debug] "+msg+"\033[0m\n")
+		fmt.Fprintf(os.Stderr, "\033[90m[debug] %s\033[0m\n", msg)
 	}
 }
 
 func Error(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if fileLogger != nil {
-		fileLogger.Printf("[ERROR] " + msg)
+		fileLogger.Print("[ERROR] " + msg)
 	}
-	fmt.Fprintf(os.Stderr, "\033[31m[error] "+msg+"\033[0m\n")
+	fmt.Fprintf(os.Stderr, "\033[31m[error] %s\033[0m\n", msg)
 }
 
 func Warn(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if fileLogger != nil {
-		fileLogger.Printf("[WARN]  " + msg)
+		fileLogger.Print("[WARN]  " + msg)
 	}
 }
