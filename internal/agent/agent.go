@@ -3,6 +3,7 @@ package agent
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -230,6 +231,8 @@ func (a *Agent) executeToolCall(ctx context.Context, tc llm.ToolUseBlock) sessio
 
 	// Execute
 	fmt.Printf("\033[36m⚙  执行 %s...\033[0m\n", tc.Name)
+	printToolCallPath(tc.Input)
+
 	start := time.Now()
 	result, err := tool.Execute(ctx, tc.Input)
 	elapsed := time.Since(start)
@@ -251,6 +254,27 @@ func (a *Agent) executeToolCall(ctx context.Context, tc llm.ToolUseBlock) sessio
 		ToolUseID: tc.ID,
 		Text:      result.Content,
 	}
+}
+
+func printToolCallPath(raw json.RawMessage) {
+	var result struct {
+		Path    *string `json:"path"`
+		Command *string `json:"command"`
+	}
+
+	if err := json.Unmarshal(raw, &result); err != nil {
+		fmt.Println("解析失败")
+		return
+	}
+
+	if result.Path != nil {
+		fmt.Printf("%s\n", *result.Path)
+	}
+
+	if result.Command != nil {
+		fmt.Printf("$ %s\n", *result.Command)
+	}
+
 }
 
 func buildAssistantMessage(text string, toolCalls []llm.ToolUseBlock) session.Message {
