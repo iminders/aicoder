@@ -106,7 +106,7 @@ type EditFileTool struct{}
 func (t *EditFileTool) Name() string          { return "edit_file" }
 func (t *EditFileTool) Risk() tools.RiskLevel { return tools.RiskMedium }
 func (t *EditFileTool) Description() string {
-	return "Edit a file by replacing an exact old_string with new_string. old_string must match exactly once."
+	return "Edit a file by replacing an exact old_string with new_string if it exist. old_string must match exactly once."
 }
 func (t *EditFileTool) Schema() json.RawMessage {
 	return json.RawMessage(`{
