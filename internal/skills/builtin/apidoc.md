@@ -85,3 +85,4 @@ components:
 3. 生成 OpenAPI YAML 文件
 4. 生成人可读的 Markdown 文档
 5. 校验 YAML 语法正确性
+6. 可调用tool function write_file

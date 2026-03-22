@@ -41,6 +41,7 @@ output_file: prd.md
 
 ## 输出要求
 
+- 可调用tool function write_file
 - 生成完整的 Markdown 文档
 - 文档末尾注明版本、作者（如已知）、日期
 - 如果信息不足，在对应章节标注 `[待补充]` 并列出需要确认的问题

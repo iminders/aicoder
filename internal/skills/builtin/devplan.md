@@ -77,3 +77,4 @@ output_file: todo.md
 - 按 Phase 组织，每 Phase 有完成标准
 - 末尾附风险登记表和发布清单
 - 如工期信息不足，给出合理估算并标注假设条件
+- 可调用tool function write_file

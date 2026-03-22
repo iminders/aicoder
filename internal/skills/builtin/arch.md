@@ -73,6 +73,7 @@ output_file: arch.md
 
 ## 输出要求
 
+- 可调用tool function write_file
 - 完整 Markdown，含所有 Mermaid 图
 - 对每个关键决策说明"为什么选它，为什么不选备选方案"
 - 末尾附：术语表、参考资料
