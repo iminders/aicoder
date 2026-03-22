@@ -131,7 +131,7 @@ aicoder/
 ### 项目上下文收集 (`internal/context/`)
 - [x] `git.go` - Git 信息采集 ⭐
 - [x] `project.go` - 项目类型检测 ⭐
-- [x] `aicoder_md.go` - AICODER.md 加载 ⭐
+- [x] `aicoder_md.go` - .AICODER.md 加载 ⭐
 - [x] `summarizer.go` - 目录结构摘要 ⭐ **新增**
 - [x] `collector.go` - 上下文组合和系统提示生成 ⭐
 

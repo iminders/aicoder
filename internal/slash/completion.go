@@ -21,7 +21,7 @@ func AllCommands() []CommandInfo {
 		{"/cost", "查看 Token 用量和费用估算", "/cost"},
 		{"/model", "查看或切换 AI 模型", "/model [name]"},
 		{"/config", "查看或修改配置", "/config [set key value]"},
-		{"/init", "在当前目录初始化 AICODER.md", "/init"},
+		{"/init", "在当前目录初始化 .AICODER.md", "/init"},
 		{"/sessions", "列出历史会话", "/sessions"},
 		{"/save", "保存当前会话到文件", "/save [filename]"},
 		{"/tools", "列出可用工具", "/tools"},

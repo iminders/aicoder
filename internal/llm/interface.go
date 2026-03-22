@@ -14,7 +14,7 @@ type ToolSchema struct {
 
 // StreamEvent is emitted by Provider.Stream for each piece of the response.
 type StreamEvent struct {
-	Type    string // text_delta | tool_use_start | tool_use_delta | tool_use_end | usage | done | error
+	Type    string // text_delta | tool_use_start | tool_use_delta | tool_use_end | thinking_delta | thinking_done | usage | done | error
 	Delta   string
 	ToolUse *ToolUseBlock
 	Input   int // input token count (on usage event)

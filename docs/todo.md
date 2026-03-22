@@ -339,7 +339,7 @@
 
 - [ ] 多 Agent 并行任务（任务拆解 + 子 Agent 协同）
 - [ ] Web Dashboard（会话历史可视化、Token 用量分析）
-- [ ] `AICODER.md` 模板市场（团队共享最佳实践）
+- [ ] `.AICODER.md` 模板市场（团队共享最佳实践）
 - [ ] VS Code 插件（内嵌本 CLI，提供侧边栏 UI）
 - [ ] 企业版：SSO 集成、操作审计日志导出、私有部署
 

@@ -22,7 +22,7 @@
 - **内置工具集**：文件读写编辑、Shell 命令执行、全局代码搜索
 - **权限确认机制**：危险操作前要求用户确认，支持黑名单和白名单
 - **多 LLM 提供商**：Anthropic Claude、OpenAI GPT（兼容任何 OpenAI 格式端点）
-- **项目上下文感知**：自动读取 `AICODER.md`、Git 状态、项目依赖
+- **项目上下文感知**：自动读取 `.AICODER.md`、Git 状态、项目依赖
 - **斜杠命令**：`/diff`、`/undo`、`/commit`、`/cost` 等 11 个内置命令
 - **纯 Go 标准库**：无外部依赖，单二进制，跨平台
 
@@ -113,7 +113,7 @@ $ aicoder
 | `/cost` | 查看 Token 用量和费用估算 |
 | `/model [name]` | 查看或切换 AI 模型 |
 | `/config` | 查看当前配置 |
-| `/init` | 在当前目录生成 AICODER.md 模板 |
+| `/init` | 在当前目录生成 .AICODER.md 模板 |
 | `/exit` | 退出程序 |
 
 ---
@@ -143,9 +143,9 @@ $ aicoder
 
 ---
 
-## AICODER.md 项目配置
+## .AICODER.md 项目配置
 
-在项目根目录创建 `AICODER.md`（或运行 `/init`），AI 会在每次会话开始时自动加载它作为项目级系统提示词：
+在项目根目录创建 `.AICODER.md`（或运行 `/init`），AI 会在每次会话开始时自动加载它作为项目级系统提示词：
 
 ```markdown
 # 项目说明

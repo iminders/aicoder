@@ -11,7 +11,7 @@ import (
 // ProjectContext holds auto-discovered project information.
 type ProjectContext struct {
 	RootDir       string
-	AICoderMD     string // contents of AICODER.md if found
+	AICoderMD     string // contents of .AICODER.md if found
 	GitInfo       string
 	ProjectInfo   string
 	DirectoryTree string // directory structure summary
@@ -55,7 +55,7 @@ func (c *ProjectContext) SystemPrompt() string {
 func findAICoderMD(startDir string) string {
 	dir := startDir
 	for {
-		path := filepath.Join(dir, "AICODER.md")
+		path := filepath.Join(dir, ".AICODER.md")
 		if data, err := os.ReadFile(path); err == nil {
 			return string(data)
 		}

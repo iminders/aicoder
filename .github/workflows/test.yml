@@ -11,15 +11,15 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        go-version: ['1.19', '1.20', '1.21']
+        go-version: ['1.26']
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -39,22 +39,22 @@ jobs:
       - name: Run tests
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
-      - name: Upload coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.21'
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.txt
+      # - name: Upload coverage
+      #   if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.26'
+      #   uses: codecov/codecov-action@v3
+      #   with:
+      #     file: ./coverage.txt
 
   # lint:
   #   runs-on: ubuntu-latest
   #   steps:
   #     - name: Checkout code
-  #       uses: actions/checkout@v4
+  #       uses: actions/checkout@v5
 
   #     - name: Set up Go
-  #       uses: actions/setup-go@v5
+  #       uses: actions/setup-go@v6
   #       with:
-  #         go-version: '1.21'
+  #         go-version: '1.26'
 
   #     - name: Run golangci-lint
   #       uses: golangci/golangci-lint-action@v3
@@ -85,12 +85,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.21'
+          go-version: '1.26'
 
       - name: Build
         env:

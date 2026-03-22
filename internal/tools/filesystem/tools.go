@@ -72,19 +72,27 @@ func (t *WriteFileTool) Execute(_ context.Context, raw json.RawMessage) (*tools.
 	if err := json.Unmarshal(raw, &in); err != nil {
 		return &tools.Result{IsError: true, Content: err.Error()}, nil
 	}
+	if in.Path == "" {
+		return &tools.Result{IsError: true, Content: "path cannot be empty"}, nil
+	}
 	if err := checkSandbox(in.Path); err != nil {
 		return &tools.Result{IsError: true, Content: err.Error()}, nil
 	}
-	// Snapshot before state
-	var before []byte
-	before, _ = os.ReadFile(in.Path)
 
 	if err := os.MkdirAll(filepath.Dir(in.Path), 0755); err != nil {
 		return &tools.Result{IsError: true, Content: err.Error()}, nil
 	}
+
+	// Snapshot before state
+	var before []byte
+	if _, err := os.Stat(in.Path); err == nil {
+		before, _ = os.ReadFile(in.Path)
+	}
+
 	if err := os.WriteFile(in.Path, []byte(in.Content), 0644); err != nil {
 		return &tools.Result{IsError: true, Content: err.Error()}, nil
 	}
+	
 	if SnapshotFunc != nil {
 		SnapshotFunc("write_file", fmt.Sprintf("%d", time.Now().UnixNano()), in.Path, before, []byte(in.Content))
 	}
@@ -98,7 +106,7 @@ type EditFileTool struct{}
 func (t *EditFileTool) Name() string          { return "edit_file" }
 func (t *EditFileTool) Risk() tools.RiskLevel { return tools.RiskMedium }
 func (t *EditFileTool) Description() string {
-	return "Edit a file by replacing an exact old_string with new_string. old_string must match exactly once."
+	return "Edit a file by replacing an exact old_string with new_string if it exist. old_string must match exactly once."
 }
 func (t *EditFileTool) Schema() json.RawMessage {
 	return json.RawMessage(`{

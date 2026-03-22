@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Built-in tools: file operations, shell execution, code search
 - Permission confirmation system with risk classification
 - Multi-LLM provider support (Anthropic Claude, OpenAI GPT)
-- Project context awareness (AICODER.md, Git status, dependencies)
+- Project context awareness (.AICODER.md, Git status, dependencies)
 - 11 slash commands: /help, /clear, /history, /undo, /diff, /commit, /cost, /model, /config, /init, /exit
 - Session management with snapshots and undo
 - Token usage tracking and cost estimation

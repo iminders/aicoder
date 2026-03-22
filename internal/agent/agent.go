@@ -3,6 +3,7 @@ package agent
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -13,8 +14,10 @@ import (
 	"github.com/iminders/aicoder/internal/llm"
 	"github.com/iminders/aicoder/internal/logger"
 	"github.com/iminders/aicoder/internal/session"
+	"github.com/iminders/aicoder/internal/skills"
 	"github.com/iminders/aicoder/internal/tools"
 	"github.com/iminders/aicoder/internal/ui"
+	"github.com/mattn/go-isatty"
 )
 
 // Agent orchestrates the full LLM ↔ tool loop.
@@ -55,10 +58,45 @@ func New(cfg *config.Config, provider llm.Provider) *Agent {
 func (a *Agent) Session() *session.Session { return a.sess }
 
 // Run processes one user turn and drives the Agent Loop until the model stops.
+// It auto-detects applicable skills and injects their prompts.
 func (a *Agent) Run(ctx context.Context, userInput string) error {
+	// Auto-detect skill from input
+	if skill := skills.Global.Detect(userInput); skill != nil {
+		return a.RunWithSkill(ctx, userInput, skill)
+	}
+	return a.run(ctx, userInput)
+}
+
+// RunWithSkill runs with a specific skill injected as additional context.
+func (a *Agent) RunWithSkill(ctx context.Context, userInput string, skill *skills.Skill) error {
+	ui.PrintInfo(fmt.Sprintf("🎯 技能激活: %s — %s", skill.Name, skill.Description))
+	if skill.OutputFile != "" {
+		ui.PrintInfo(fmt.Sprintf("📄 建议输出文件: %s", skill.OutputFile))
+	}
+
+	// Inject skill prompt as a system-level context message for this turn only.
+	// We add it as a user message prefix so it doesn't pollute the system prompt.
+	augmented := fmt.Sprintf("[技能上下文: %s]\n%s\n\n---\n用户需求：%s",
+		skill.Name, skill.Prompt, userInput)
+	return a.run(ctx, augmented)
+}
+
+// RunWithSkillByName looks up a skill by name and delegates to RunWithSkill.
+func (a *Agent) RunWithSkillByName(ctx context.Context, userInput, skillName string) error {
+	skill := skills.Global.Get(skillName)
+	if skill == nil {
+		// Skill not found — run without it but warn
+		ui.PrintWarn(fmt.Sprintf("Skill %q not found, running without skill context", skillName))
+		return a.run(ctx, userInput)
+	}
+	return a.RunWithSkill(ctx, userInput, skill)
+}
+
+// Run processes one user turn and drives the Agent Loop until the model stops.
+func (a *Agent) run(ctx context.Context, userInput string) error {
 	a.sess.AppendMessage(session.TextMessage("user", userInput))
 
-	for iteration := 0; iteration < 20; iteration++ {
+	for iteration := 0; iteration < 50; iteration++ {
 		// Build the LLM request
 		req := &llm.Request{
 			Model:     a.cfg.Model,
@@ -76,6 +114,11 @@ func (a *Agent) Run(ctx context.Context, userInput string) error {
 		// Consume the stream
 		var toolCalls []llm.ToolUseBlock
 		var textBuf strings.Builder
+		var thinkingActive bool
+		var thinkingChars int
+
+		// Check if stdout is a terminal
+		isTTY := isatty.IsTerminal(os.Stdout.Fd())
 
 		for event := range eventCh {
 			select {
@@ -86,8 +129,33 @@ func (a *Agent) Run(ctx context.Context, userInput string) error {
 			}
 			switch event.Type {
 			case "text_delta":
+				// If we were thinking, clear the thinking indicator
+				if thinkingActive && isTTY {
+					fmt.Print("\r\033[K") // Clear line
+				}
+				thinkingActive = false
+				thinkingChars = 0
 				a.renderer.Write(event.Delta)
 				textBuf.WriteString(event.Delta)
+			case "thinking_delta":
+				// Show thinking progress without newline (only in TTY mode)
+				thinkingChars += len(event.Delta)
+				if !thinkingActive {
+					thinkingActive = true
+				}
+				// Only update indicator in TTY mode to avoid cluttering pipe output
+				if isTTY {
+					fmt.Printf("\r\033[90m[Thinking... %d chars]\033[0m", thinkingChars)
+				}
+			case "thinking_done":
+				// DeepSeek R1 thinking complete (</think> detected)
+				if thinkingActive && isTTY {
+					fmt.Print("\r\033[K") // Clear the thinking line
+				}
+				thinkingActive = false
+				thinkingChars = 0
+				logger.Debug("thinking complete: %d chars", len(event.Delta))
+				// Don't write thinking content to output
 			case "tool_use_end":
 				if event.ToolUse != nil {
 					toolCalls = append(toolCalls, *event.ToolUse)
@@ -163,6 +231,8 @@ func (a *Agent) executeToolCall(ctx context.Context, tc llm.ToolUseBlock) sessio
 
 	// Execute
 	fmt.Printf("\033[36m⚙  执行 %s...\033[0m\n", tc.Name)
+	printToolCallPath(tc.Input)
+
 	start := time.Now()
 	result, err := tool.Execute(ctx, tc.Input)
 	elapsed := time.Since(start)
@@ -184,6 +254,27 @@ func (a *Agent) executeToolCall(ctx context.Context, tc llm.ToolUseBlock) sessio
 		ToolUseID: tc.ID,
 		Text:      result.Content,
 	}
+}
+
+func printToolCallPath(raw json.RawMessage) {
+	var result struct {
+		Path    *string `json:"path"`
+		Command *string `json:"command"`
+	}
+
+	if err := json.Unmarshal(raw, &result); err != nil {
+		fmt.Println("解析失败")
+		return
+	}
+
+	if result.Path != nil {
+		fmt.Printf("%s\n", *result.Path)
+	}
+
+	if result.Command != nil {
+		fmt.Printf("$ %s\n", *result.Command)
+	}
+
 }
 
 func buildAssistantMessage(text string, toolCalls []llm.ToolUseBlock) session.Message {

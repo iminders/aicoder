@@ -10,13 +10,14 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/chzyer/readline"
 	"github.com/iminders/aicoder/internal/agent"
 	"github.com/iminders/aicoder/internal/config"
 	"github.com/iminders/aicoder/internal/llm"
 	anthropicprovider "github.com/iminders/aicoder/internal/llm/anthropic"
+	deepseekprovider "github.com/iminders/aicoder/internal/llm/deepseek"
 	openaiprovider "github.com/iminders/aicoder/internal/llm/openai"
 	"github.com/iminders/aicoder/internal/logger"
+	"github.com/iminders/aicoder/internal/skills"
 	"github.com/iminders/aicoder/internal/slash"
 	"github.com/iminders/aicoder/internal/ui"
 	"github.com/iminders/aicoder/pkg/version"
@@ -25,6 +26,7 @@ import (
 	_ "github.com/iminders/aicoder/internal/tools/filesystem"
 	_ "github.com/iminders/aicoder/internal/tools/search"
 	_ "github.com/iminders/aicoder/internal/tools/shell"
+
 )
 
 // flags holds CLI flag values.
@@ -106,6 +108,11 @@ func Execute() {
 	// Init logger
 	logger.Init(flags.verbose)
 
+	// Load skills (built-ins + user custom)
+	if err := skills.Load(); err != nil {
+		logger.Warn("skill load error: %v", err)
+	}
+
 	// Build provider
 	provider, err := buildProvider(cfg)
 	if err != nil {
@@ -170,88 +177,8 @@ func runOneShot(a *agent.Agent, prompt string) {
 }
 
 func runInteractive(a *agent.Agent, cfg *config.Config) {
-	slashHandler := slash.NewHandler(a.Session(), cfg)
-
-	// Setup readline with tab completion
-	completer := readline.NewPrefixCompleter()
-	for _, cmd := range slash.AllCommands() {
-		completer.Children = append(completer.Children, readline.PcItem(cmd.Name))
-	}
-
-	rl, err := readline.NewEx(&readline.Config{
-		Prompt:          "\033[1;34m> \033[0m",
-		HistoryFile:     getHistoryFile(),
-		AutoComplete:    completer,
-		InterruptPrompt: "^C",
-		EOFPrompt:       "exit",
-	})
-	if err != nil {
-		// Fallback to basic reader if readline fails
-		runInteractiveBasic(a, cfg)
-		return
-	}
-	defer rl.Close()
-
-	// Setup signal handling for Ctrl+C (interrupt current task, not exit)
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
-
-	var cancelCurrent context.CancelFunc
-
-	go func() {
-		for range sigCh {
-			if cancelCurrent != nil {
-				fmt.Println("\n\033[33m[任务已中断，输入新的指令继续]\033[0m")
-				cancelCurrent()
-				cancelCurrent = nil
-			}
-		}
-	}()
-
-	for {
-		line, err := rl.Readline()
-		if err != nil {
-			if err == readline.ErrInterrupt {
-				if cancelCurrent != nil {
-					cancelCurrent()
-					cancelCurrent = nil
-				}
-				continue
-			} else if err == io.EOF {
-				fmt.Println("\n再见！")
-				break
-			}
-			continue
-		}
-		input := strings.TrimSpace(line)
-		if input == "" {
-			continue
-		}
-
-		// Handle slash commands
-		if strings.HasPrefix(input, "/") {
-			handled, shouldExit := slashHandler.Handle(input)
-			if shouldExit {
-				fmt.Println("再见！")
-				return
-			}
-			if handled {
-				continue
-			}
-		}
-
-		// Run agent
-		ctx, cancel := context.WithCancel(context.Background())
-		cancelCurrent = cancel
-
-		ui.PrintDivider()
-		if err := a.Run(ctx, input); err != nil && ctx.Err() == nil {
-			ui.PrintError(err.Error())
-		}
-		cancel()
-		cancelCurrent = nil
-		ui.PrintDivider()
-	}
+	// Use simple interactive mode (bubbletea TUI conflicts with agent's streaming output)
+	runInteractiveBasic(a, cfg)
 }
 
 func isPipeInput() bool {
@@ -276,8 +203,15 @@ func buildProvider(cfg *config.Config) (llm.Provider, error) {
 			return nil, fmt.Errorf("未找到 OpenAI API Key，请设置 OPENAI_API_KEY 环境变量")
 		}
 		return openaiprovider.New(apiKey, cfg.BaseURL, cfg.Model), nil
+	case "deepseek":
+		// For local deployments, API key is optional
+		// If baseURL is set to localhost/127.0.0.1, allow empty API key
+		if apiKey == "" && (cfg.BaseURL == "" || (!strings.Contains(cfg.BaseURL, "localhost") && !strings.Contains(cfg.BaseURL, "127.0.0.1"))) {
+			return nil, fmt.Errorf("未找到 DeepSeek API Key，请设置 DEEPSEEK_API_KEY 环境变量")
+		}
+		return deepseekprovider.New(apiKey, cfg.BaseURL, cfg.Model), nil
 	default:
-		return nil, fmt.Errorf("不支持的 provider: %s (支持: anthropic, openai)", cfg.Provider)
+		return nil, fmt.Errorf("不支持的 provider: %s (支持: anthropic, openai, deepseek)", cfg.Provider)
 	}
 }
 
@@ -315,15 +249,38 @@ func runInteractiveBasic(a *agent.Agent, cfg *config.Config) {
 
 	for {
 		fmt.Print("\033[1;34m> \033[0m")
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				fmt.Println("\n再见！")
+
+		// Read input with multi-line support
+		// Use Ctrl+D (EOF) to submit, or empty line after content
+		var inputLines []string
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
+					if len(inputLines) > 0 {
+						// Submit accumulated input
+						break
+					}
+					fmt.Println("\n再见！")
+					return
+				}
+				continue
+			}
+
+			trimmed := strings.TrimSpace(line)
+
+			// If empty line and we have content, submit
+			if trimmed == "" && len(inputLines) > 0 {
 				break
 			}
-			continue
+
+			// If not empty, accumulate
+			if trimmed != "" {
+				inputLines = append(inputLines, line)
+			}
 		}
-		input := strings.TrimSpace(line)
+
+		input := strings.TrimSpace(strings.Join(inputLines, ""))
 		if input == "" {
 			continue
 		}
@@ -336,6 +293,23 @@ func runInteractiveBasic(a *agent.Agent, cfg *config.Config) {
 				return
 			}
 			if handled {
+				// Check if /skill <n> <prompt> queued a skill run
+				if a.Session().PendingSkillName != "" {
+					skillName := a.Session().PendingSkillName
+					prompt := a.Session().PendingPrompt
+					a.Session().PendingSkillName = ""
+					a.Session().PendingPrompt = ""
+ 
+					ctx, cancel := context.WithCancel(context.Background())
+					cancelCurrent = cancel
+					ui.PrintDivider()
+					if err := a.RunWithSkillByName(ctx, prompt, skillName); err != nil && ctx.Err() == nil {
+						ui.PrintError(err.Error())
+					}
+					cancel()
+					cancelCurrent = nil
+					ui.PrintDivider()
+				}
 				continue
 			}
 		}

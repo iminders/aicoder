@@ -62,8 +62,8 @@ This document summarizes the implementation of Phase 6 (Slash Commands) and Phas
    - Validates values (e.g., provider must be anthropic/openai)
    - Persists changes to user config file
 
-10. **`/init`** - Initialize AICODER.md template
-    - Creates AICODER.md in current directory
+10. **`/init`** - Initialize .AICODER.md template
+    - Creates .AICODER.md in current directory
     - Includes sections: Project Description, Code Standards, Common Commands, Notes
     - Adds version and timestamp footer
 

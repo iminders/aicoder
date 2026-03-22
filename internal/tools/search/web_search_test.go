@@ -10,8 +10,7 @@ import (
 
 func TestWebSearchTool_NoConfig(t *testing.T) {
 	// 确保环境变量未设置
-	os.Unsetenv("SEARCH_API_KEY")
-	os.Unsetenv("SEARCH_ENGINE_ID")
+	os.Unsetenv("TAVILY_API_KEY")
 
 	tool := &WebSearchTool{}
 
@@ -34,8 +33,8 @@ func TestWebSearchTool_NoConfig(t *testing.T) {
 		t.Errorf("Expected configuration error message, got: %s", result.Content)
 	}
 
-	if !strings.Contains(result.Content, "SEARCH_API_KEY") {
-		t.Errorf("Expected mention of SEARCH_API_KEY, got: %s", result.Content)
+	if !strings.Contains(result.Content, "TAVILY_API_KEY") {
+		t.Errorf("Expected mention of TAVILY_API_KEY, got: %s", result.Content)
 	}
 }
 
@@ -172,11 +171,10 @@ func TestWebSearchTool_ToolInterface(t *testing.T) {
 // TestWebSearchTool_Integration 是集成测试,需要真实的 API 凭证
 // 默认跳过,可以通过设置环境变量来运行
 func TestWebSearchTool_Integration(t *testing.T) {
-	apiKey := os.Getenv("SEARCH_API_KEY")
-	engineID := os.Getenv("SEARCH_ENGINE_ID")
+	apiKey := os.Getenv("TAVILY_API_KEY")
 
-	if apiKey == "" || engineID == "" {
-		t.Skip("Skipping integration test: SEARCH_API_KEY or SEARCH_ENGINE_ID not set")
+	if apiKey == "" {
+		t.Skip("Skipping integration test: TAVILY_API_KEY not set")
 	}
 
 	tool := &WebSearchTool{}
