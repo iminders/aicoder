@@ -22,27 +22,31 @@ import (
 
 // Agent orchestrates the full LLM ↔ tool loop.
 type Agent struct {
-	cfg      *config.Config
-	provider llm.Provider
-	sess     *session.Session
-	guard    *PermissionGuard
-	renderer *ui.Renderer
+	cfg         *config.Config
+	provider    llm.Provider
+	sess        *session.Session
+	sessManager *session.SessionManager
+	guard       *PermissionGuard
+	renderer    *ui.Renderer
 }
 
 // New creates an Agent from the given config and provider.
 func New(cfg *config.Config, provider llm.Provider) *Agent {
 	sess := session.New(cfg.Model)
 
+	sm, _ := session.NewSessionManager()
+
 	// Wire snapshot capture into filesystem tools
 	tools.Global.All() // ensure tools are registered
 	wireSnapshot(sess)
 
 	a := &Agent{
-		cfg:      cfg,
-		provider: provider,
-		sess:     sess,
-		guard:    NewPermissionGuard(cfg, cfg.DangerouslySkip),
-		renderer: ui.NewRenderer(),
+		cfg:         cfg,
+		provider:    provider,
+		sess:        sess,
+		sessManager: sm,
+		guard:       NewPermissionGuard(cfg, cfg.DangerouslySkip),
+		renderer:    ui.NewRenderer(),
 	}
 
 	// Build system prompt from project context
@@ -95,6 +99,16 @@ func (a *Agent) RunWithSkillByName(ctx context.Context, userInput, skillName str
 // Run processes one user turn and drives the Agent Loop until the model stops.
 func (a *Agent) run(ctx context.Context, userInput string) error {
 	a.sess.AppendMessage(session.TextMessage("user", userInput))
+
+	if warning, exceeded := a.checkTokenBudget(); warning != "" {
+		if exceeded {
+			ui.PrintError(warning)
+		} else {
+			ui.PrintWarn(warning)
+		}
+	}
+
+	go a.autoSave()
 
 	for iteration := 0; iteration < 50; iteration++ {
 		// Build the LLM request
@@ -200,6 +214,35 @@ func (a *Agent) run(ctx context.Context, userInput string) error {
 	}
 
 	return fmt.Errorf("agent loop exceeded maximum iterations")
+}
+
+func (a *Agent) autoSave() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		if err := a.sess.Save(); err != nil {
+			logger.Debug("auto-save failed: %v", err)
+		}
+		if a.sessManager != nil {
+			a.sessManager.UpdateSessionMeta(a.sess.ToMeta())
+		}
+	}
+}
+
+func (a *Agent) checkTokenBudget() (warning string, exceeded bool) {
+	tokens := a.sess.EstimatedTokens()
+	limit := 128000
+	ratio := float64(tokens) / float64(limit)
+	if ratio >= 1.0 {
+		return fmt.Sprintf("Token 使用已达 %d/%d (100%%)，建议使用 /compress 压缩会话", tokens, limit), true
+	}
+	if ratio >= 0.9 {
+		return fmt.Sprintf("Token 使用已达 %d/%d (90%%)，强烈建议使用 /compress 压缩会话", tokens, limit), false
+	}
+	if ratio >= 0.8 {
+		return fmt.Sprintf("Token 使用已达 %d/%d (80%%)，可考虑使用 /compress 压缩会话", tokens, limit), false
+	}
+	return "", false
 }
 
 func (a *Agent) executeToolCall(ctx context.Context, tc llm.ToolUseBlock) session.Content {

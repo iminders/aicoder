@@ -18,16 +18,19 @@ import (
 
 // Handler processes a slash command string. Returns true if the program should exit.
 type Handler struct {
-	sess    *session.Session
-	cfg     *config.Config
-	printer func(...interface{}) // For printing output (can be tea.Program.Println or fmt.Println)
+	sess        *session.Session
+	sessManager *session.SessionManager
+	cfg         *config.Config
+	printer     func(...interface{}) // For printing output (can be tea.Program.Println or fmt.Println)
 }
 
 func NewHandler(sess *session.Session, cfg *config.Config) *Handler {
+	sm, _ := session.NewSessionManager()
 	return &Handler{
-		sess:    sess,
-		cfg:     cfg,
-		printer: func(args ...interface{}) { fmt.Println(args...) }, // Default to fmt.Println
+		sess:        sess,
+		sessManager: sm,
+		cfg:         cfg,
+		printer:     func(args ...interface{}) { fmt.Println(args...) }, // Default to fmt.Println
 	}
 }
 
@@ -79,13 +82,35 @@ func (h *Handler) Handle(input string) (handled bool, shouldExit bool) {
 	case "/init":
 		h.cmdInit()
 	case "/sessions":
-		h.cmdSessions()
+		h.cmdSessions(args)
 	case "/save":
 		h.cmdSave()
 	case "/tools":
 		h.cmdTools()
 	case "/skill", "/skills":
 		return h.cmdSkill(args)
+	case "/pin":
+		h.cmdPin(args)
+	case "/unpin":
+		h.cmdUnpin(args)
+	case "/compress":
+		h.cmdCompress(args)
+	case "/budget":
+		h.cmdBudget()
+	case "/session":
+		return h.cmdSession(args)
+	case "/delete", "/del":
+		h.cmdDelete(args)
+	case "/archive":
+		h.cmdArchive(args)
+	case "/tag":
+		h.cmdTag(args)
+	case "/compare":
+		h.cmdCompare(args)
+	case "/export":
+		h.cmdExport(args)
+	case "/import":
+		h.cmdImport(args)
 	default:
 		ui.PrintWarn(fmt.Sprintf("未知命令: %s  (输入 /help 查看所有命令)", cmd))
 	}
@@ -104,11 +129,22 @@ func (h *Handler) cmdHelp() {
 │ /diff         │ 查看本次会话所有文件变更                          │
 │ /commit [msg] │ Git 提交本次会话的变更                            │
 │ /cost         │ 查看 Token 用量和费用估算                         │
+│ /budget       │ 查看会话预算信息                                  │
 │ /model [m]    │ 查看或切换 AI 模型                               │
 │ /config       │ 查看当前配置                                      │
 │ /init         │ 在当前目录初始化 .AICODER.md                       │
 │ /sessions     │ 列出历史会话                                      │
+│ /session      │ 会话管理 (load/save/pin/archive/delete)           │
 │ /save         │ 手动保存当前会话                                  │
+│ /pin <n>      │ 置顶指定消息                                     │
+│ /unpin <n>    │ 取消置顶指定消息                                  │
+│ /compress     │ 压缩会话 (--msgs=N --tokens=N)                   │
+│ /tag <id> <t> │ 为会话添加标签                                   │
+│ /compare      │ 对比两个会话                                      │
+│ /export [id]  │ 导出会话                                          │
+│ /import <f>   │ 导入会话文件                                      │
+│ /delete <id>  │ 删除指定会话                                      │
+│ /archive <id> │ 归档指定会话                                      │
 │ /tools        │ 列出所有可用工具                                  │
 │ /skill list          │ 列出所有内置 Skill                             │
 │ /skill <名称>        │ 显示 Skill 详情                               │
@@ -298,7 +334,55 @@ _由 aicoder v%s 生成于 %s_
 	}
 	ui.PrintSuccess("已创建 .AICODER.md，请编辑它来描述您的项目")
 }
-func (h *Handler) cmdSessions() {
+func (h *Handler) cmdSessions(args []string) {
+	if h.sessManager == nil {
+		ui.PrintInfo("SessionManager 不可用，使用旧方式显示")
+		h.cmdSessionsLegacy()
+		return
+	}
+
+	filter := session.ListFilter{Limit: 20}
+	for _, arg := range args {
+		if arg == "--all" {
+			filter.IncludeArchived = true
+			filter.Limit = 100
+		} else if arg == "--pinned" {
+			filter.OnlyPinned = true
+		} else if strings.HasPrefix(arg, "--search=") {
+			filter.Search = strings.TrimPrefix(arg, "--search=")
+		} else if strings.HasPrefix(arg, "--limit=") {
+			fmt.Sscanf(strings.TrimPrefix(arg, "--limit="), "%d", &filter.Limit)
+		}
+	}
+
+	sessions := h.sessManager.ListSessions(filter)
+	if len(sessions) == 0 {
+		ui.PrintInfo("暂无会话记录")
+		return
+	}
+
+	h.printf("\033[1m历史会话 (%d 个):\033[0m\n", len(sessions))
+	ui.PrintDivider()
+
+	for _, s := range sessions {
+		archived := ""
+		if s.IsArchived {
+			archived = " \033[33m[已归档]\033[0m"
+		}
+		pinned := ""
+		if s.IsPinned {
+			pinned = " \033[36m[置顶]\033[0m"
+		}
+		tokens := s.InputTokens + s.OutputTokens
+		h.printf("  \033[36m%-12s\033[0m %s%s%s\n", s.ID[:min(len(s.ID), 12)], s.Title, pinned, archived)
+		h.printf("    %s | %d 条消息 | %d tokens | %s\n",
+			s.UpdatedAt.Format("2006-01-02 15:04"), s.MessageCount, tokens, s.Summary)
+	}
+	ui.PrintDivider()
+	h.println("  用法: /sessions [--all] [--pinned] [--search=<word>] [--limit=N]")
+}
+
+func (h *Handler) cmdSessionsLegacy() {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		ui.PrintError("无法确定 home 目录: " + err.Error())
@@ -314,7 +398,6 @@ func (h *Handler) cmdSessions() {
 	h.printf("\033[1m历史会话 (%d 个):\033[0m\n", len(entries))
 	ui.PrintDivider()
 
-	// Show most recent 20, newest first
 	start := 0
 	if len(entries) > 20 {
 		start = len(entries) - 20
@@ -327,7 +410,6 @@ func (h *Handler) cmdSessions() {
 			size = fmt.Sprintf("%.1fKB", float64(info.Size())/1024)
 		}
 		name := strings.TrimSuffix(e.Name(), ".json")
-		// Try to parse timestamp from name (Unix nanoseconds)
 		modTime := ""
 		if info != nil {
 			modTime = info.ModTime().Format("2006-01-02 15:04")
@@ -336,6 +418,332 @@ func (h *Handler) cmdSessions() {
 	}
 	ui.PrintDivider()
 	h.println("  提示：会话文件保存在", dir)
+}
+
+func (h *Handler) cmdPin(args []string) {
+	if len(args) == 0 {
+		ui.PrintWarn("用法: /pin <消息索引>")
+		return
+	}
+	idx := 0
+	if _, err := fmt.Sscanf(args[0], "%d", &idx); err != nil {
+		ui.PrintError("无效的索引: " + args[0])
+		return
+	}
+	if err := h.sess.PinMessage(idx); err != nil {
+		ui.PrintError(err.Error())
+		return
+	}
+	ui.PrintSuccess(fmt.Sprintf("已置顶消息 #%d", idx))
+}
+
+func (h *Handler) cmdUnpin(args []string) {
+	if len(args) == 0 {
+		ui.PrintWarn("用法: /unpin <消息索引>")
+		return
+	}
+	idx := 0
+	if _, err := fmt.Sscanf(args[0], "%d", &idx); err != nil {
+		ui.PrintError("无效的索引: " + args[0])
+		return
+	}
+	if err := h.sess.UnpinMessage(idx); err != nil {
+		ui.PrintError(err.Error())
+		return
+	}
+	ui.PrintSuccess(fmt.Sprintf("已取消置顶消息 #%d", idx))
+}
+
+func (h *Handler) cmdCompress(args []string) {
+	maxMsgs := 50
+	maxTokens := 128000
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--msgs=") {
+			fmt.Sscanf(strings.TrimPrefix(arg, "--msgs="), "%d", &maxMsgs)
+		} else if strings.HasPrefix(arg, "--tokens=") {
+			fmt.Sscanf(strings.TrimPrefix(arg, "--tokens="), "%d", &maxTokens)
+		} else {
+			fmt.Sscanf(arg, "%d", &maxMsgs)
+		}
+	}
+
+	result := h.sess.Compress(maxMsgs, maxTokens)
+	ui.PrintSuccess(fmt.Sprintf("会话已压缩: %d 条消息 (%d tokens) -> %d 条消息 (%d tokens)",
+		result.BeforeCount, result.BeforeTokens, result.AfterCount, result.AfterTokens))
+
+	if len(result.Summaries) > 0 {
+		ui.PrintInfo(fmt.Sprintf("已生成 %d 个摘要块保留重要信息", len(result.Summaries)))
+	}
+}
+
+func (h *Handler) cmdBudget() {
+	usage := h.sess.Usage
+	model := h.sess.Model
+	est := usage.CostEstimate(model)
+	tokens := h.sess.EstimatedTokens()
+
+	h.printf("\033[1m会话预算信息:\033[0m\n")
+	ui.PrintDivider()
+	h.printf("  \033[1m模型:\033[0m        %s\n", model)
+	h.printf("  \033[1m消息数:\033[0m      %d\n", h.sess.MessageCount())
+	h.printf("  \033[1m估算 tokens:\033[0m %d\n", tokens)
+	h.printf("  \033[1m输入 tokens:\033[0m %d\n", usage.InputTokens)
+	h.printf("  \033[1m输出 tokens:\033[0m %d\n", usage.OutputTokens)
+	h.printf("  \033[1m费用估算:\033[0m    $%.4f USD\n", est)
+
+	if h.sessManager != nil {
+		sessions := h.sessManager.ListSessions(session.ListFilter{Limit: 100})
+		var totalTokens int
+		for _, s := range sessions {
+			totalTokens += s.InputTokens + s.OutputTokens
+		}
+		h.printf("  \033[1m历史累计:\033[0m    %d 条会话，%d tokens\n", len(sessions), totalTokens)
+	}
+	ui.PrintDivider()
+}
+
+func (h *Handler) cmdSession(args []string) (bool, bool) {
+	if len(args) == 0 {
+		h.printf("\033[1m会话子命令:\033[0m\n")
+		ui.PrintDivider()
+		h.println("  /session load <id>   加载指定会话")
+		h.println("  /session save [name] 保存当前会话")
+		h.println("  /session pin         置顶当前会话")
+		h.println("  /session archive     归档当前会话")
+		h.println("  /session delete <id> 删除指定会话")
+		return true, false
+	}
+
+	sub := args[0]
+	switch sub {
+	case "load":
+		if len(args) < 2 {
+			ui.PrintWarn("用法: /session load <id>")
+			return true, false
+		}
+		h.cmdSessionLoad(args[1])
+	case "save":
+		name := ""
+		if len(args) > 1 {
+			name = strings.Join(args[1:], " ")
+		}
+		h.cmdSessionSave(name)
+	case "pin":
+		h.cmdSessionPin()
+	case "archive":
+		h.cmdSessionArchive()
+	case "delete":
+		if len(args) < 2 {
+			ui.PrintWarn("用法: /session delete <id>")
+			return true, false
+		}
+		h.cmdSessionDelete(args[1])
+	default:
+		ui.PrintWarn(fmt.Sprintf("未知子命令: %s", sub))
+	}
+	return true, false
+}
+
+func (h *Handler) cmdSessionLoad(id string) {
+	if h.sessManager == nil {
+		ui.PrintError("SessionManager 不可用")
+		return
+	}
+	sess, err := h.sessManager.GetSession(id)
+	if err != nil {
+		ui.PrintError(err.Error())
+		return
+	}
+	h.sess = sess
+	ui.PrintSuccess(fmt.Sprintf("已加载会话: %s", sess.Title()))
+}
+
+func (h *Handler) cmdSessionSave(name string) {
+	if err := h.sess.Save(); err != nil {
+		ui.PrintError("保存失败: " + err.Error())
+		return
+	}
+	if h.sessManager != nil {
+		h.sessManager.UpdateSessionMeta(h.sess.ToMeta())
+	}
+	ui.PrintSuccess(fmt.Sprintf("会话已保存 (ID: %s)", h.sess.ID))
+}
+
+func (h *Handler) cmdSessionPin() {
+	if h.sessManager == nil {
+		ui.PrintError("SessionManager 不可用")
+		return
+	}
+	if err := h.sessManager.PinSession(h.sess.ID, true); err != nil {
+		ui.PrintError(err.Error())
+		return
+	}
+	ui.PrintSuccess("当前会话已置顶")
+}
+
+func (h *Handler) cmdSessionArchive() {
+	if h.sessManager == nil {
+		ui.PrintError("SessionManager 不可用")
+		return
+	}
+	if err := h.sessManager.ArchiveSession(h.sess.ID); err != nil {
+		ui.PrintError(err.Error())
+		return
+	}
+	ui.PrintSuccess("当前会话已归档")
+}
+
+func (h *Handler) cmdSessionDelete(id string) {
+	if h.sessManager == nil {
+		ui.PrintError("SessionManager 不可用")
+		return
+	}
+	if err := h.sessManager.DeleteSession(id); err != nil {
+		ui.PrintError(err.Error())
+		return
+	}
+	ui.PrintSuccess(fmt.Sprintf("已删除会话: %s", id))
+}
+
+func (h *Handler) cmdDelete(args []string) {
+	if len(args) == 0 {
+		ui.PrintWarn("用法: /delete <会话ID> 或 /del <会话ID>")
+		return
+	}
+	h.cmdSessionDelete(args[0])
+}
+
+func (h *Handler) cmdArchive(args []string) {
+	if len(args) == 0 {
+		ui.PrintWarn("用法: /archive <会话ID>")
+		return
+	}
+	if h.sessManager == nil {
+		ui.PrintError("SessionManager 不可用")
+		return
+	}
+	if err := h.sessManager.ArchiveSession(args[0]); err != nil {
+		ui.PrintError(err.Error())
+		return
+	}
+	ui.PrintSuccess(fmt.Sprintf("已归档会话: %s", args[0]))
+}
+
+func (h *Handler) cmdTag(args []string) {
+	if len(args) == 0 {
+		ui.PrintWarn("用法: /tag <会话ID> <标签> 或 /tag add/del <会话ID> <标签>")
+		return
+	}
+
+	if h.sessManager == nil {
+		ui.PrintError("SessionManager 不可用")
+		return
+	}
+
+	if args[0] == "add" && len(args) >= 3 {
+		if err := h.sessManager.AddTagToSession(args[1], args[2]); err != nil {
+			ui.PrintError(err.Error())
+			return
+		}
+		ui.PrintSuccess(fmt.Sprintf("已添加标签 [%s] 到会话 %s", args[2], args[1]))
+		return
+	}
+
+	if args[0] == "del" && len(args) >= 3 {
+		if err := h.sessManager.RemoveTagFromSession(args[1], args[2]); err != nil {
+			ui.PrintError(err.Error())
+			return
+		}
+		ui.PrintSuccess(fmt.Sprintf("已从会话 %s 移除标签 [%s]", args[1], args[2]))
+		return
+	}
+
+	if len(args) >= 2 {
+		if err := h.sessManager.AddTagToSession(args[0], args[1]); err != nil {
+			ui.PrintError(err.Error())
+			return
+		}
+		ui.PrintSuccess(fmt.Sprintf("已添加标签 [%s] 到会话 %s", args[1], args[0]))
+		return
+	}
+
+	ui.PrintWarn("用法: /tag <会话ID> <标签>")
+}
+
+func (h *Handler) cmdCompare(args []string) {
+	if len(args) < 2 {
+		ui.PrintWarn("用法: /compare <会话ID1> <会话ID2>")
+		return
+	}
+
+	if h.sessManager == nil {
+		ui.PrintError("SessionManager 不可用")
+		return
+	}
+
+	result, err := h.sessManager.CompareSessions(args[0], args[1])
+	if err != nil {
+		ui.PrintError(err.Error())
+		return
+	}
+
+	ui.PrintDivider()
+	h.println(result)
+	ui.PrintDivider()
+}
+
+func (h *Handler) cmdExport(args []string) {
+	id := h.sess.ID
+	if len(args) > 0 {
+		id = args[0]
+	}
+
+	if h.sessManager == nil {
+		ui.PrintError("SessionManager 不可用")
+		return
+	}
+
+	data, err := h.sessManager.ExportSession(id)
+	if err != nil {
+		ui.PrintError(err.Error())
+		return
+	}
+
+	home, _ := os.UserHomeDir()
+	path := filepath.Join(home, ".aicoder", "sessions", "export", id+".json")
+	os.MkdirAll(filepath.Dir(path), 0700)
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		ui.PrintError("导出失败: " + err.Error())
+		return
+	}
+
+	ui.PrintSuccess(fmt.Sprintf("会话已导出到: %s", path))
+}
+
+func (h *Handler) cmdImport(args []string) {
+	if len(args) == 0 {
+		ui.PrintWarn("用法: /import <文件路径>")
+		return
+	}
+
+	data, err := os.ReadFile(args[0])
+	if err != nil {
+		ui.PrintError("读取文件失败: " + err.Error())
+		return
+	}
+
+	if h.sessManager == nil {
+		ui.PrintError("SessionManager 不可用")
+		return
+	}
+
+	sess, err := h.sessManager.ImportSession(data)
+	if err != nil {
+		ui.PrintError("导入失败: " + err.Error())
+		return
+	}
+
+	ui.PrintSuccess(fmt.Sprintf("会话已导入: %s", sess.ID))
 }
 
 func (h *Handler) cmdSave() {
@@ -355,21 +763,25 @@ func (h *Handler) cmdTools() {
 	// Tool metadata is stored in the global registry; we query it via the session
 	// Since we can't import tools here (circular), we print a static summary
 	rows := []struct{ name, risk, desc string }{
-		{"read_file",       "低", "读取文件内容（支持行范围）"},
-		{"write_file",      "中", "写入或创建文件"},
-		{"edit_file",       "中", "精确替换文件中的字符串"},
-		{"list_dir",        "低", "列出目录结构（树形）"},
-		{"search_files",    "低", "正则搜索文件内容"},
-		{"delete_file",     "高", "删除文件（不可逆）"},
-		{"run_command",     "中", "执行 Shell 命令"},
-		{"run_background",  "中", "后台启动长时进程"},
-		{"grep_search",     "低", "全目录正则搜索"},
-		{"web_search",      "低", "联网搜索"},
+		{"read_file", "低", "读取文件内容（支持行范围）"},
+		{"write_file", "中", "写入或创建文件"},
+		{"edit_file", "中", "精确替换文件中的字符串"},
+		{"list_dir", "低", "列出目录结构（树形）"},
+		{"search_files", "低", "正则搜索文件内容"},
+		{"delete_file", "高", "删除文件（不可逆）"},
+		{"run_command", "中", "执行 Shell 命令"},
+		{"run_background", "中", "后台启动长时进程"},
+		{"grep_search", "低", "全目录正则搜索"},
+		{"web_search", "低", "联网搜索"},
 	}
 	for _, r := range rows {
 		riskColor := "\033[32m"
-		if r.risk == "中" { riskColor = "\033[33m" }
-		if r.risk == "高" { riskColor = "\033[31m" }
+		if r.risk == "中" {
+			riskColor = "\033[33m"
+		}
+		if r.risk == "高" {
+			riskColor = "\033[31m"
+		}
 		h.printf("  %-18s %s[%s]\033[0m  %s\n", r.name, riskColor, r.risk, r.desc)
 	}
 	ui.PrintDivider()
@@ -377,11 +789,11 @@ func (h *Handler) cmdTools() {
 }
 
 func min(a, b int) int {
-	if a < b { return a }
+	if a < b {
+		return a
+	}
 	return b
 }
-
-
 
 // cmdSkill handles: /skill list | /skill <name> | /skill <name> <prompt> | /skill new <name>
 // It returns (handled bool, shouldExit bool) so the caller can optionally
