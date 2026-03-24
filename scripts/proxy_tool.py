@@ -35,7 +35,7 @@ def proxy_deepseek():
             json=req_data,
             headers=headers,
             stream=is_stream,
-            timeout=3000  # local LLM 推理较慢，建议增加超时
+            timeout=9000  # local LLM 推理较慢，建议增加超时
         )
 
         # 3. 构造响应并清洗返回的 Headers
